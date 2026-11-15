@@ -660,3 +660,81 @@ aside {
   color: #c6ac84;
   text-align: center;
 }
+
+/* Compact score rail belongs to the table, above the playing surface on every screen. */
+.table-area {
+  padding-top: 115px;
+  padding-bottom: 40px;
+}
+.board-scoreboard {
+  position: absolute;
+  z-index: 2;
+  top: 57px;
+  left: 35px;
+  right: 35px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+.board-scoreboard .score {
+  margin: 0;
+  padding: 9px 12px;
+  gap: 9px;
+  flex-wrap: nowrap;
+  background: #2e241ddd;
+}
+.board-scoreboard .score strong {
+  font-size: 16px;
+}
+.board-scoreboard .score small {
+  font-size: 7px;
+  letter-spacing: 0.6px;
+  margin-top: 3px;
+}
+.board-scoreboard .score > b {
+  font-size: 25px;
+  white-space: nowrap;
+}
+.board-scoreboard .role-icon {
+  font-size: 22px;
+  width: 24px;
+}
+@media (max-width: 1000px) {
+  .board-scoreboard {
+    left: 18px;
+    right: 18px;
+    gap: 6px;
+  }
+  .board-scoreboard .score {
+    padding: 8px 6px;
+    gap: 5px;
+  }
+  .board-scoreboard .score strong {
+    font-size: 14px;
+  }
+  .board-scoreboard .role-icon {
+    display: none;
+  }
+}
+@media (max-width: 750px) {
+  .table-area {
+    padding-top: 105px;
+    padding-bottom: 32px;
+    height: 560px;
+  }
+  .board-scoreboard {
+    top: 47px;
+    left: 15px;
+    right: 15px;
+  }
+  .board-scoreboard .score > b {
+    font-size: 22px;
+  }
+  .board-scoreboard .score small {
+    font-size: 6px;
+  }
+  .board-scoreboard .score > b small {
+    font-size: 7px;
+  }
+}

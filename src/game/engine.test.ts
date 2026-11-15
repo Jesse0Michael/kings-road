@@ -53,24 +53,51 @@ describe("King’s Road", () => {
     expect(n.walls[0]).toBe(0);
     expect(n.scores).toEqual({ Builder: 0, Army: 0, Runner: 1 });
   });
-  it("scores a return to the initial space only once per circuit", () => {
+  it("does not score repeated backtracking or a return to the turn start", () => {
     let g = createGame("Runner");
     g.turn = "Runner";
     g.phase = "run";
     g.budget = 8;
     for (const node of [1, 0, 1, 0]) g = act(g, { type: "run", node });
-    expect(g.scores.Runner).toBe(2);
+    expect(g.scores.Runner).toBe(1);
   });
-  it("resets exploration after all six locations while retaining current location", () => {
+  it("never resets visited nodes mid-turn, including a full circuit", () => {
     let g = createGame("Runner");
     g.turn = "Runner";
     g.phase = "run";
     g.budget = 8;
-    for (const node of [1, 2, 3, 4, 5]) g = act(g, { type: "run", node });
-    expect(g.visited).toEqual([5]);
-    expect(g.scored).toEqual([5]);
+    for (const node of [1, 2, 3, 4, 5, 0, 1]) g = act(g, { type: "run", node });
+    expect(g.scores.Runner).toBe(5);
+    expect(g.visited).toHaveLength(6);
+    expect(g.scored).toHaveLength(6);
+  });
+  it("allows nodes to score again next turn and preserves total scores", () => {
+    let g = createGame("Runner");
+    g.turn = "Runner";
+    g.phase = "run";
+    g.budget = 4;
+    g = act(g, { type: "run", node: 1 });
+    g = act(g, { type: "end" });
+    g.turn = "Army";
+    g.phase = "deploy";
+    g.budget = 1;
+    g = act(g, { type: "deploy", node: 2 });
+    expect(g.turn).toBe("Runner");
+    expect(g.scored).toEqual([1]);
+    g = act(g, { type: "roll" });
     g = act(g, { type: "run", node: 0 });
-    expect(g.scores.Runner).toBe(6);
+    expect(g.scores.Runner).toBe(2);
+  });
+  it("keeps turn exploration after saving and resuming", () => {
+    let g = createGame("Runner");
+    g.turn = "Runner";
+    g.phase = "run";
+    g.budget = 8;
+    g = act(g, { type: "run", node: 1 });
+    g = JSON.parse(JSON.stringify(g));
+    g = act(g, { type: "run", node: 0 });
+    g = act(g, { type: "run", node: 1 });
+    expect(g.scores.Runner).toBe(1);
   });
   it("lets soldiers hold and Runner end early", () => {
     let g = createGame("Army");

@@ -30,6 +30,12 @@ test("new game, 3D scene, movement, reload, rules, and mobile", async ({
     state.walls.reduce((a: number, b: number) => a + b, 0),
   ).toBeGreaterThan(0);
   expect(state.units.length).toBeGreaterThan(0);
+  const rail = page.getByLabel("Game scores");
+  await expect(rail).toBeVisible();
+  await expect(rail.locator(".score")).toHaveCount(3);
+  const scoreBox = await rail.boundingBox(),
+    boardBox = await page.locator("canvas").boundingBox();
+  expect(scoreBox!.y + scoreBox!.height).toBeLessThanOrEqual(boardBox!.y);
   await page.screenshot({
     path: testInfo.outputPath("game.png"),
     fullPage: true,
@@ -45,6 +51,11 @@ test("new game, 3D scene, movement, reload, rules, and mobile", async ({
   ).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Return to the table" }).click();
+  const mobileScore = await page.getByLabel("Game scores").boundingBox(),
+    mobileBoard = await page.locator("canvas").boundingBox();
+  expect(mobileScore!.y + mobileScore!.height).toBeLessThanOrEqual(
+    mobileBoard!.y,
+  );
   await page.screenshot({
     path: testInfo.outputPath("mobile.png"),
     fullPage: true,
@@ -127,4 +138,31 @@ test("imports a game, wins, records history once, and exports", async ({
     buffer: Buffer.from('{"version":999}'),
   });
   await expect(page.getByRole("alert")).toContainText("not a valid");
+});
+
+test("Runner scores a destination once per turn through the actual controls", async ({
+  page,
+}) => {
+  const g = createGame("Runner", 123);
+  g.turn = "Runner";
+  g.phase = "run";
+  g.budget = 8;
+  await page.goto("/");
+  await page
+    .locator("input[type=file]")
+    .setInputFiles({
+      name: "runner.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(g)),
+    });
+  for (const n of [1, 0, 1, 0, 1])
+    await page.locator(".locations button").nth(n).click();
+  const state = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("kings-road.game.v1")!),
+  );
+  expect(state.scores.Runner).toBe(1);
+  expect(state.scored).toEqual([0, 1]);
+  await expect(
+    page.getByLabel("Game scores").locator(".score").nth(2),
+  ).toContainText("1");
 });

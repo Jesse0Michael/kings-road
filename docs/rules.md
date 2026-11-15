@@ -94,3 +94,7 @@ For circuit reset and sequencing details used by the browser MVP, see [implement
 - Unplaceable reinforcements or construction are discarded only when every valid placement is full.
 
 These playtest revisions supersede the original unlimited stacking and individual movement rules in the browser game.
+
+## Latest Runner scoring clarification
+
+Runner points are awarded per unique node entered during that Runner turn, rather than per exploration circuit. The location where the turn begins is already visited. Backtracking does not award extra points. The visited set resets at the next Runner turn, even if not all six locations were reached; visiting all six never resets it within a turn. Accumulated scores are retained. This supersedes earlier circuit-reset and starting-space clarifications above.

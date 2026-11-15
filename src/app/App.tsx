@@ -277,23 +277,7 @@ export default function App() {
                 ROUND {String(g.round).padStart(2, "0")} <b>•</b> FIRST TO 15
               </span>
             </div>
-            <Table
-              game={g}
-              onNode={node}
-              onRoad={(road) => {
-                if (human && !rolling) dispatch({ type: "wall", road });
-              }}
-              selected={selected}
-              rolling={rolling}
-            />
-            <div className="table-bottom">
-              <span>STONE WALLS · CRIMSON SOLDIERS · TEAL TRAVELER</span>
-              <button onClick={exportGame}>Export save ↗</button>
-            </div>
-          </section>
-          <aside>
-            <p className="eyebrow">THE CONTENDERS</p>
-            <div className="scores">
+            <div className="scores board-scoreboard" aria-label="Game scores">
               {roles.map((r) => (
                 <div
                   key={r}
@@ -317,6 +301,21 @@ export default function App() {
                 </div>
               ))}
             </div>
+            <Table
+              game={g}
+              onNode={node}
+              onRoad={(road) => {
+                if (human && !rolling) dispatch({ type: "wall", road });
+              }}
+              selected={selected}
+              rolling={rolling}
+            />
+            <div className="table-bottom">
+              <span>STONE WALLS · CRIMSON SOLDIERS · TEAL TRAVELER</span>
+              <button onClick={exportGame}>Export save ↗</button>
+            </div>
+          </section>
+          <aside>
             <section className="turn-panel">
               <p className="eyebrow">
                 {g.winner
@@ -473,11 +472,11 @@ export default function App() {
           ))}
           <h2>Exploration</h2>
           <p>
-            The Runner scores one point per location per circuit. Returning to
-            the original starting location can score. The start counts as
-            visited for completing the first circuit. Once all six locations
-            have been visited, a new circuit starts with the current location
-            already visited and scored.
+            The Runner earns one point for each unique location entered during
+            its turn. The starting location is already visited. Revisiting any
+            location in the same turn earns no extra points, even after visiting
+            all six. The visited set resets at the start of the next Runner
+            turn; total scores carry over between rounds.
           </p>
           <h2>At the table</h2>
           <p>

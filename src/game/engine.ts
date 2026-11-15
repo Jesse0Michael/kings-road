@@ -54,7 +54,7 @@ export function createGame(human: Role, seed = Date.now() >>> 0): Game {
     moved: [],
     runner: 0,
     visited: [0],
-    scored: [],
+    scored: [0],
     budget: 0,
     dice: [],
     seed: seed || 1,
@@ -95,6 +95,8 @@ function next(g: Game) {
   } else if (g.turn === "Army") {
     g.turn = "Runner";
     g.phase = "roll";
+    g.visited = [g.runner];
+    g.scored = [g.runner];
   } else {
     g.turn = "Builder";
     g.round++;
@@ -105,6 +107,10 @@ export function act(state: Game, a: Action): Game {
   if (state.winner) return state;
   const g = structuredClone(state);
   if (a.type === "roll" && g.phase === "roll") {
+    if (g.turn === "Runner") {
+      g.visited = [g.runner];
+      g.scored = [g.runner];
+    }
     const sides = g.turn === "Builder" ? 4 : g.turn === "Army" ? 6 : 8;
     g.dice = Array.from(
       { length: g.turn === "Builder" ? 3 : g.turn === "Army" ? 2 : 1 },
@@ -197,11 +203,6 @@ export function act(state: Game, a: Action): Game {
       );
     }
     if (!g.visited.includes(a.node)) g.visited.push(a.node);
-    if (g.visited.length === 6) {
-      g.visited = [a.node];
-      g.scored = [a.node];
-      note(g, "All six locations visited. A new exploration circuit begins.");
-    }
     if (!g.budget && !g.winner) next(g);
   } else if (a.type === "end") {
     if (g.phase === "move") {

@@ -16,11 +16,11 @@ Author confirmations supersede the relevant wording in the original rules:
 
 - An Army soldier may remain in place. Holding remaining soldiers ends the movement phase, not the entire Army turn; reinforcements follow.
 - The Runner may end movement early.
-- Returning to the initial starting space counts for scoring. It starts in the visited set for completing a circuit, but not the scored set.
+- Runner scoring is now per turn: the starting location is already visited, and each other unique node entered earns one point. Repeated visits earn nothing until the next Runner turn.
 
 Implementation decisions where the prototype did not prescribe the detail:
 
-- At a circuit reset, the Runner’s current location starts the next circuit already visited and scored. Every other location, including the original start, can score again on entry.
+- Exploration resets only at the start of the next Runner turn, never after visiting all six locations. Total scores are cumulative.
 - Army movement resolves sequentially in the chosen order. Each existing soldier moves at most once; newly deployed soldiers wait until the next Army turn.
 - A soldier attempting a blocked road is sacrificed at that road. It destroys exactly one wall and does not cross or score a castle arrival.
 - A blocked Runner crossing requires enough points to clear every wall: two movement points per wall, with no additional crossing cost. Partial destruction without crossing is unavailable.
@@ -51,3 +51,7 @@ All ten roads now hold at most five walls. Perimeter nodes hold at most five Arm
 Deployments cannot exceed capacity or use the Runner’s node. If no eligible spaces remain, unused reinforcements are discarded. If every road is full, unused construction is discarded. Older saved games are not destructively trimmed: existing over-cap groups/walls remain, but cannot receive additions until below the cap.
 
 Fast computer turns is now a browser-persisted preference in Settings, rather than a control beside the board.
+
+## Per-turn exploration and consolidated scores
+
+The scoreboard is a compact three-role strip above the board on both desktop and mobile. Runner exploration now tracks unique nodes within one Runner turn (one turn per round). The turn starts with its current node already visited. Every other node may score once, and visiting all six does not reset eligibility. Save/resume retains the current turn’s visited set. Existing accumulated scores are retained; earlier exploration sets are replaced when the next Runner turn begins.
