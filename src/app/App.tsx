@@ -19,6 +19,7 @@ import {
 } from "../game/engine";
 import { Table, colors } from "../scene/Table";
 import { history, loadGame, save, validGame } from "../persistence";
+import { useGameAudio } from "../audio/useGameAudio";
 const labels = ["I", "II", "III", "IV", "V", "♜"];
 const descriptions = {
   Builder:
@@ -31,6 +32,15 @@ export default function App() {
   const [screen, setScreen] = useState<
     "home" | "game" | "rules" | "history" | "settings"
   >("home");
+  const {
+    player: audio,
+    preferences: audioPreferences,
+    setLevel,
+    audioError,
+  } = useGameAudio();
+  useEffect(() => {
+    audio.setGame(game, screen === "game");
+  }, [audio, game?.id, screen]);
   const [role, setRole] = useState<Role>("Runner");
   const [selected, setSelected] = useState<number | null>(null);
   const [rolling, setRolling] = useState(false);
@@ -57,6 +67,7 @@ export default function App() {
     [],
   );
   function resetMotion() {
+    audio.reset();
     if (actionTimer.current) clearTimeout(actionTimer.current);
     busy.current = false;
     setTransitions([]);
@@ -105,6 +116,7 @@ export default function App() {
         after: next,
         at: performance.now(),
       };
+      audio.transition(transition, reduced);
       setTransitions((list) => [...list, transition].slice(-80));
     }
     currentGame.current = next;
@@ -122,14 +134,16 @@ export default function App() {
           ? 1200
           : ROLL_MS;
       // Capture values before committing, so the fixed-face dice land before gameplay uses them.
-      setDiceRoll({
+      const roll = {
         id: ++sequence.current,
         role: active.turn,
         values: rollDice(active).dice,
         started: performance.now(),
         duration,
         seed: next.seed,
-      });
+      };
+      setDiceRoll(roll);
+      audio.roll(roll);
       if (duration) {
         busy.current = true;
         setRolling(true);
@@ -564,7 +578,7 @@ export default function App() {
           </p>
           <h2>At the table</h2>
           <p>
-            Click roads to build walls. For the Army, select a location with an
+            Click roads to build walls. For the Army, select a location with a
             ready group and then an adjacent destination. Click locations to
             deploy or move the Runner. The labeled controls beside the board
             offer the same actions. Location VI is the central castle, marked ♜.
@@ -601,6 +615,53 @@ export default function App() {
             Fast turns shorten computer pauses and dice animations. Turn this
             off to enjoy a slower tavern pace.
           </p>
+          <section className="audio-settings" aria-labelledby="sound-heading">
+            <h2 id="sound-heading">Sound at the table</h2>
+            <p>
+              Tavern Dance plays on repeat. Set either volume to zero to mute
+              it.
+            </p>
+            {(["music", "effects"] as const).map((kind) => (
+              <div className="volume-control" key={kind}>
+                <div className="volume-label">
+                  <label htmlFor={`${kind}-volume`}>
+                    {kind === "music" ? "Music volume" : "Sound effects volume"}
+                  </label>
+                  <output htmlFor={`${kind}-volume`}>
+                    {audioPreferences[kind]
+                      ? `${audioPreferences[kind]}%`
+                      : "Muted"}
+                  </output>
+                </div>
+                <input
+                  id={`${kind}-volume`}
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={audioPreferences[kind]}
+                  aria-valuetext={
+                    audioPreferences[kind]
+                      ? `${audioPreferences[kind]} percent`
+                      : "Muted"
+                  }
+                  onChange={(e) => setLevel(kind, Number(e.target.value))}
+                />
+              </div>
+            ))}
+            <button
+              className="secondary test-sound"
+              disabled={!audioPreferences.effects}
+              onClick={() => void audio.preview()}
+            >
+              Test sound
+            </button>
+            <p className="audio-note">
+              Audio starts after your first interaction and pauses when you
+              leave this tab.
+            </p>
+            {audioError && <p role="status">{audioError}</p>}
+          </section>
           <button
             className="primary"
             onClick={() => setScreen(g ? "game" : "home")}

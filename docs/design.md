@@ -57,6 +57,14 @@ The rules engine determines a seeded roll. The browser interpolates the correspo
 
 Rapier is a development dependency only. The production app needs no physics WebAssembly download or network service. Assets use Vite’s base URL so they load from the GitHub Pages project subdirectory.
 
+## Audio
+
+The original Suno song is preserved outside `public/`; a normalized MP3 copy streams through an HTML audio element on repeat. Web Audio gain nodes provide independent music/effects levels, including on mobile browsers that do not support changing a media element's volume directly. Defaults are 20% music and 40% effects, persisted separately from game saves. Audio initializes after a pointer or keyboard gesture, so the browser's autoplay policy is respected. Zero music pauses the stream; zero effects cancels outstanding cues. A hidden tab pauses music, suspends the audio context, and drops queued effects. Returning resumes the music without replaying missed actions.
+
+Effects are original, offline-generated PCM samples. `SoundTimeline` consumes the same `reconcilePieces` paths as the renderer, so placements sound at contact and queued Runner captures sound at arrival. Army groups and wall stacks coalesce into a single cue per action. Castle arrivals have a distinct sound instead of a death sound; score changes play one short chime per scoring role/action. Reduced-motion mode skips the movement delay. No sound is replayed for restored/imported state. Leaving the table or replacing a game cancels pending effects.
+
+Dice clacks are scheduled at actual table contacts detected from the recorded physical trajectories, scaled to the current roll duration. Simultaneous contacts coalesce to avoid multiplying the volume. The audio buffers are loaded after the first interaction. Missing/blocked audio does not affect gameplay. A small compressor controls overlapping effects; sounds do not block actions. A test-sound button in Settings helps adjust the effects slider.
+
 ## Rendering limits
 
 The fixed camera and small piece counts keep the scene practical for modern desktop and mobile browsers. The app still requires WebGL for the tabletop; a rendering failure leaves the labeled controls available. Three.js produces a sizeable initial JavaScript bundle and Vite’s standard large-chunk warning. There is no PWA service worker or guaranteed offline reload support.
