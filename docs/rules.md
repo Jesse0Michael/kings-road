@@ -84,3 +84,13 @@ The original rules above are retained as supplied. Subsequent author clarificati
 - Returning to the Runner’s original starting space counts for scoring. The starting-space exclusion in the original text above is superseded by this clarification.
 
 For circuit reset and sequencing details used by the browser MVP, see [implementation decisions](design.md).
+
+## Current browser playtest revision
+
+- Each road holds at most five walls.
+- Each perimeter node holds at most five Army soldiers.
+- Ready Army soldiers move together as a group. Excess soldiers that cannot fit remain at the origin and may attempt another road. Soldiers that moved cannot move again that turn.
+- On blocked roads, each wall consumes one soldier; surviving soldiers cross up to the destination’s capacity.
+- Unplaceable reinforcements or construction are discarded only when every valid placement is full.
+
+These playtest revisions supersede the original unlimited stacking and individual movement rules in the browser game.

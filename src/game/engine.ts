@@ -4,6 +4,12 @@ export const roads = Array.from({ length: 5 }, (_, i) => [
   i,
   (i + 1) % 5,
 ]).concat(Array.from({ length: 5 }, (_, i) => [i, 5]));
+export const WALL_CAP = 5;
+export const NODE_CAP = 5;
+export const unitCount = (g: Game, n: number) =>
+  g.units.filter((u) => u.node === n).length;
+export const deploymentAvailable = (g: Game) =>
+  [0, 1, 2, 3, 4].some((n) => n !== g.runner && unitCount(g, n) < NODE_CAP);
 export type Unit = { id: number; node: number };
 export type Game = {
   version: 1;
@@ -118,7 +124,8 @@ export function act(state: Game, a: Action): Game {
     g.budget > 0 &&
     Number.isInteger(a.road) &&
     a.road >= 0 &&
-    a.road < 10
+    a.road < 10 &&
+    g.walls[a.road] < WALL_CAP
   ) {
     g.walls[a.road]++;
     g.budget--;
@@ -129,20 +136,30 @@ export function act(state: Game, a: Action): Game {
     if (!u || g.moved.includes(u.id)) return state;
     const r = roadBetween(u.node, a.node);
     if (r < 0) return state;
-    g.moved.push(u.id);
-    if (g.walls[r]) {
-      g.walls[r]--;
-      g.units = g.units.filter((v) => v.id !== u.id);
-      note(g, "A soldier sacrificed itself to breach a wall.");
-      point(g, "Builder");
-    } else if (a.node === 5) {
-      g.units = g.units.filter((v) => v.id !== u.id);
-      note(g, "A soldier reached the castle.");
-      point(g, "Army");
-    } else {
-      u.node = a.node;
-      note(g, `A soldier marched to location ${a.node + 1}.`);
+    const group = g.units.filter(
+      (v) => v.node === u.node && !g.moved.includes(v.id),
+    );
+    let changed = false;
+    for (const soldier of group) {
+      if (!g.walls[r] && a.node !== 5 && unitCount(g, a.node) >= NODE_CAP)
+        break;
+      changed = true;
+      g.moved.push(soldier.id);
+      if (g.walls[r]) {
+        g.walls[r]--;
+        g.units = g.units.filter((v) => v.id !== soldier.id);
+        point(g, "Builder");
+      } else if (a.node === 5) {
+        g.units = g.units.filter((v) => v.id !== soldier.id);
+        point(g, "Army");
+      } else soldier.node = a.node;
+      if (g.winner) break;
     }
+    if (!changed) return state;
+    note(
+      g,
+      "Army group advanced; soldiers without space remain ready at their origin.",
+    );
     if (g.units.every((u) => g.moved.includes(u.id))) g.phase = "roll";
   } else if (
     a.type === "deploy" &&
@@ -151,7 +168,8 @@ export function act(state: Game, a: Action): Game {
     Number.isInteger(a.node) &&
     a.node >= 0 &&
     a.node < 5 &&
-    a.node !== g.runner
+    a.node !== g.runner &&
+    unitCount(g, a.node) < NODE_CAP
   ) {
     g.units.push({ id: g.nextId++, node: a.node });
     g.budget--;
@@ -194,5 +212,16 @@ export function act(state: Game, a: Action): Game {
       next(g);
     } else return state;
   } else return state;
+  if (!g.winner && g.phase === "build" && g.walls.every((n) => n >= WALL_CAP)) {
+    note(
+      g,
+      "All roads are at their wall limit. Unused construction is discarded.",
+    );
+    next(g);
+  }
+  if (!g.winner && g.phase === "deploy" && !deploymentAvailable(g)) {
+    note(g, `${g.budget} reinforcements could not deploy: no available space.`);
+    next(g);
+  }
   return g;
 }

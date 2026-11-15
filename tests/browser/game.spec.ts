@@ -12,7 +12,9 @@ test("new game, 3D scene, movement, reload, rules, and mobile", async ({
     fullPage: true,
   });
   await page.getByRole("button", { name: "Take your seat as Runner" }).click();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByLabel("Fast computer turns").check();
+  await page.getByRole("button", { name: /^Return to the table/ }).click();
   await expect(page.getByRole("button", { name: "Roll the dice" })).toBeVisible(
     { timeout: 20000 },
   );
@@ -69,7 +71,9 @@ test("human Builder can build and human Army can deploy", async ({ page }) => {
   await page.getByRole("button", { name: /Army 2/ }).click();
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Take your seat as Army" }).click();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByLabel("Fast computer turns").check();
+  await page.getByRole("button", { name: /^Return to the table/ }).click();
   await expect(page.getByRole("button", { name: "Roll the dice" })).toBeVisible(
     { timeout: 15000 },
   );
@@ -93,13 +97,11 @@ test("imports a game, wins, records history once, and exports", async ({
   g.budget = 2;
   g.scores.Runner = 14;
   await page.goto("/");
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "save.json",
-      mimeType: "application/json",
-      buffer: Buffer.from(JSON.stringify(g)),
-    });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "save.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(g)),
+  });
   await page.locator(".locations button").nth(1).click();
   await expect(
     page.getByRole("heading", { name: "Runner prevails" }),
@@ -119,12 +121,10 @@ test("imports a game, wins, records history once, and exports", async ({
     page.getByRole("heading", { name: "Runner prevailed" }),
   ).toHaveCount(1);
   await page.getByRole("button", { name: /KING’S ROAD/ }).click();
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "bad.json",
-      mimeType: "application/json",
-      buffer: Buffer.from('{"version":999}'),
-    });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "bad.json",
+    mimeType: "application/json",
+    buffer: Buffer.from('{"version":999}'),
+  });
   await expect(page.getByRole("alert")).toContainText("not a valid");
 });

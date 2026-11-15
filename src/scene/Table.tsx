@@ -1,3 +1,5 @@
+import { woodSurface, castleEngraving } from "./materials";
+import { Soldier, Runner, StoneWall } from "./Pieces";
 import { Suspense } from "react";
 import {
   Physics,
@@ -19,119 +21,6 @@ const positions: [number, number][] = Array.from({ length: 5 }, (_, i) => [
   -Math.cos((i * Math.PI * 2) / 5) * 3.05,
 ]);
 positions.push([0, 0]);
-function woodTexture() {
-  const c = document.createElement("canvas");
-  c.width = 512;
-  c.height = 512;
-  const x = c.getContext("2d")!;
-  x.fillStyle = "#74462b";
-  x.fillRect(0, 0, 512, 512);
-  let seed = 8;
-  const random = () => {
-    seed = (seed * 16807) % 2147483647;
-    return seed / 2147483647;
-  };
-  for (let i = 0; i < 950; i++) {
-    x.strokeStyle = `rgba(${random() > 0.5 ? "220,163,95" : "35,16,9"},${random() * 0.13})`;
-    x.lineWidth = random() * 2;
-    x.beginPath();
-    const y = random() * 512;
-    x.moveTo(0, y);
-    x.bezierCurveTo(
-      150,
-      y + random() * 18,
-      350,
-      y - random() * 18,
-      512,
-      y + random() * 12,
-    );
-    x.stroke();
-  }
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-function Soldier({
-  position,
-  onClick,
-}: {
-  position: [number, number, number];
-  onClick: () => void;
-}) {
-  return (
-    <group
-      position={position}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-    >
-      <mesh castShadow position={[0, 0.08, 0]}>
-        <cylinderGeometry args={[0.14, 0.18, 0.16, 12]} />
-        <meshStandardMaterial color="#72272d" />
-      </mesh>
-      <mesh castShadow position={[0, 0.3, 0]}>
-        <coneGeometry args={[0.14, 0.36, 8]} />
-        <meshStandardMaterial color={colors.Army} />
-      </mesh>
-      <mesh castShadow position={[0, 0.54, 0]}>
-        <sphereGeometry args={[0.12, 10, 8]} />
-        <meshStandardMaterial color="#c46a63" />
-      </mesh>
-      <mesh position={[0, 0.61, 0]} castShadow>
-        <coneGeometry args={[0.14, 0.16, 8]} />
-        <meshStandardMaterial color="#7f3035" />
-      </mesh>
-      <mesh position={[0.11, 0.34, 0.09]} castShadow>
-        <boxGeometry args={[0.12, 0.24, 0.07]} />
-        <meshStandardMaterial color="#d1a66f" />
-      </mesh>
-    </group>
-  );
-}
-function Runner({ node }: { node: number }) {
-  const ref = useRef<THREE.Group>(null);
-  useFrame((_, dt) => {
-    if (ref.current) {
-      ref.current.position.x = THREE.MathUtils.damp(
-        ref.current.position.x,
-        positions[node][0],
-        8,
-        dt,
-      );
-      ref.current.position.z = THREE.MathUtils.damp(
-        ref.current.position.z,
-        positions[node][1],
-        8,
-        dt,
-      );
-    }
-  });
-  return (
-    <group ref={ref} position={[positions[node][0], 0.32, positions[node][1]]}>
-      <mesh castShadow position={[0, 0.12, 0]}>
-        <cylinderGeometry args={[0.18, 0.23, 0.18, 16]} />
-        <meshStandardMaterial color="#165f59" />
-      </mesh>
-      <mesh castShadow position={[0, 0.42, 0]}>
-        <coneGeometry args={[0.23, 0.58, 12]} />
-        <meshStandardMaterial color={colors.Runner} />
-      </mesh>
-      <mesh castShadow position={[0, 0.77, 0]} rotation={[0.3, 0, 0]}>
-        <sphereGeometry args={[0.18, 12, 10]} />
-        <meshStandardMaterial color="#257d74" />
-      </mesh>
-      <mesh position={[0, 0.76, 0.14]}>
-        <sphereGeometry args={[0.105, 12, 8]} />
-        <meshStandardMaterial color="#162c28" />
-      </mesh>
-      <mesh castShadow position={[0.27, 0.42, 0]} rotation={[0, 0, -0.12]}>
-        <cylinderGeometry args={[0.025, 0.025, 0.86, 8]} />
-        <meshStandardMaterial color="#d8b77c" />
-      </mesh>
-    </group>
-  );
-}
 function dieTexture(value: number, color: string) {
   const c = document.createElement("canvas");
   c.width = 128;
@@ -303,26 +192,44 @@ function Scene({
   selected: number | null;
   rolling: boolean;
 }) {
-  const wood = useMemo(woodTexture, []);
+  const wood = useMemo(() => woodSurface(), []);
+  const table = useMemo(() => woodSurface(true), []);
+  const engraving = useMemo(castleEngraving, []);
+  useEffect(
+    () => () => {
+      wood.dispose();
+      table.dispose();
+      engraving.dispose();
+    },
+    [wood, table, engraving],
+  );
   return (
     <>
       <color attach="background" args={["#211713"]} />
-      <ambientLight intensity={1.3} />
+      <ambientLight intensity={0.65} />
+      <hemisphereLight args={["#d9e3e7", "#483323", 1.35]} />
       <directionalLight
         castShadow
         position={[-4, 10, 4]}
-        intensity={2.6}
+        intensity={3.1}
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-8}
         shadow-camera-right={8}
         shadow-camera-top={8}
         shadow-camera-bottom={-8}
-        shadow-normalBias={0.04}
+        shadow-normalBias={0.025}
+        shadow-radius={4}
       />
       <pointLight position={[5, 4, -4]} intensity={14} color="#f4b965" />
       <mesh receiveShadow position={[0, -0.4, 0]}>
         <boxGeometry args={[200, 0.3, 200]} />
-        <meshStandardMaterial map={wood} color="#67412e" />
+        <meshStandardMaterial
+          map={table.map}
+          bumpMap={table.bump}
+          bumpScale={0.035}
+          color="#a99d8e"
+          roughness={0.73}
+        />
       </mesh>
       <mesh
         receiveShadow
@@ -331,7 +238,13 @@ function Scene({
         rotation={[0, Math.PI, 0]}
       >
         <cylinderGeometry args={[4.05, 4.12, 0.4, 5]} />
-        <meshStandardMaterial map={wood} color="#c39865" roughness={0.8} />
+        <meshStandardMaterial
+          map={wood.map}
+          bumpMap={wood.bump}
+          bumpScale={0.012}
+          color="#d9c5a8"
+          roughness={0.48}
+        />
       </mesh>
       <mesh
         receiveShadow
@@ -368,28 +281,21 @@ function Scene({
               />
             </mesh>
             {Array.from({ length: Math.min(game.walls[i], 7) }, (_, j) => (
-              <mesh
-                castShadow
+              <StoneWall
                 key={j}
                 position={[
                   0,
                   0.17,
-                  (j - (Math.min(game.walls[i], 7) - 1) / 2) * 0.24,
+                  (j - (Math.min(game.walls[i], 7) - 1) / 2) * 0.27,
                 ]}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRoad(i);
-                }}
-              >
-                <boxGeometry args={[0.62, 0.3, 0.16]} />
-                <meshStandardMaterial color={colors.Builder} roughness={0.55} />
-              </mesh>
+                onClick={() => onRoad(i)}
+              />
             ))}
           </group>
         );
       })}
       {positions.map(([x, z], n) => (
-        <group key={n} position={[x, 0.2, z]}>
+        <group key={n} position={[x, n === 5 ? 0.075 : 0.2, z]}>
           <mesh
             receiveShadow
             castShadow
@@ -402,7 +308,9 @@ function Scene({
               args={[n === 5 ? 0.68 : 0.52, n === 5 ? 0.73 : 0.57, 0.17, 32]}
             />
             <meshStandardMaterial
-              map={wood}
+              map={wood.map}
+              bumpMap={wood.bump}
+              bumpScale={0.012}
               color={
                 selected === n
                   ? "#f5ca70"
@@ -419,24 +327,23 @@ function Scene({
             <meshStandardMaterial color="#694a2b" />
           </mesh>
           {n === 5 && (
-            <group position={[0, 0.1, 0]}>
-              <mesh castShadow position={[0, 0.2, 0]}>
-                <boxGeometry args={[0.45, 0.4, 0.38]} />
-                <meshStandardMaterial color="#d1b27f" />
-              </mesh>
-              {[-1, 1].flatMap((a) =>
-                [-1, 1].map((b) => (
-                  <mesh
-                    castShadow
-                    key={`${a}${b}`}
-                    position={[a * 0.25, 0.3, b * 0.22]}
-                  >
-                    <cylinderGeometry args={[0.1, 0.12, 0.6, 8]} />
-                    <meshStandardMaterial color="#e0c393" />
-                  </mesh>
-                )),
-              )}
-            </group>
+            <mesh
+              rotation={[-Math.PI / 2, 0, 0]}
+              position={[0, 0.091, 0]}
+              onClick={(e) => {
+                e.stopPropagation();
+                onNode(5);
+              }}
+            >
+              <planeGeometry args={[1.27, 1.27]} />
+              <meshStandardMaterial
+                map={engraving}
+                transparent
+                roughness={1}
+                polygonOffset
+                polygonOffsetFactor={-2}
+              />
+            </mesh>
           )}
         </group>
       ))}
@@ -456,7 +363,7 @@ function Scene({
             />
           ));
       })}
-      <Runner node={game.runner} />
+      <Runner node={game.runner} positions={positions} />
       {positions.map(([x, z], n) => (
         <Marker
           key={n}

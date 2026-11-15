@@ -1,4 +1,14 @@
-import { Action, Game, neighbors, roadBetween, roads, runCost } from "./engine";
+import {
+  NODE_CAP,
+  WALL_CAP,
+  unitCount,
+  Action,
+  Game,
+  neighbors,
+  roadBetween,
+  roads,
+  runCost,
+} from "./engine";
 
 export function aiAction(g: Game): Action {
   if (g.phase === "roll") return { type: "roll" };
@@ -6,6 +16,7 @@ export function aiAction(g: Game): Action {
     let best = 5;
     let max = -Infinity;
     roads.forEach(([a, b], i) => {
+      if (g.walls[i] >= WALL_CAP) return;
       const pressure = g.units.filter(
         (u) => u.node === a || u.node === b,
       ).length;
@@ -24,7 +35,7 @@ export function aiAction(g: Game): Action {
     if (!g.walls[direct] || g.walls[direct] === 1)
       return { type: "march", unit: u.id, node: 5 };
     const alternative = neighbors(u.node)
-      .filter((n) => n !== 5)
+      .filter((n) => n !== 5 && unitCount(g, n) < NODE_CAP)
       .sort(
         (a, b) =>
           g.walls[roadBetween(u.node, a)] +
@@ -32,11 +43,11 @@ export function aiAction(g: Game): Action {
           g.walls[roadBetween(u.node, b)] -
           g.walls[roadBetween(b, 5)],
       )[0];
-    return { type: "march", unit: u.id, node: alternative };
+    return { type: "march", unit: u.id, node: alternative ?? 5 };
   }
   if (g.phase === "deploy") {
     const choices = [0, 1, 2, 3, 4]
-      .filter((n) => n !== g.runner)
+      .filter((n) => n !== g.runner && unitCount(g, n) < NODE_CAP)
       .sort(
         (a, b) =>
           g.walls[a + 5] - g.walls[b + 5] ||

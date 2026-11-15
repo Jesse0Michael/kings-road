@@ -1,6 +1,9 @@
 import { aiAction } from "../game/ai";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  NODE_CAP,
+  WALL_CAP,
+  unitCount,
   act,
   createGame,
   Game,
@@ -20,13 +23,26 @@ const descriptions = {
 };
 export default function App() {
   const [game, setGame] = useState<Game | null>(loadGame);
-  const [screen, setScreen] = useState<"home" | "game" | "rules" | "history">(
-    "home",
-  );
+  const [screen, setScreen] = useState<
+    "home" | "game" | "rules" | "history" | "settings"
+  >("home");
   const [role, setRole] = useState<Role>("Runner");
   const [selected, setSelected] = useState<number | null>(null);
   const [rolling, setRolling] = useState(false);
-  const [fast, setFast] = useState(false);
+  const [fast, setFast] = useState(() => {
+    try {
+      return localStorage.getItem("kings-road.fast") === "true";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("kings-road.fast", String(fast));
+    } catch {
+      /* The game save warning handles unavailable storage. */
+    }
+  }, [fast]);
   const [error, setError] = useState("");
   const upload = useRef<HTMLInputElement>(null);
   const busy = useRef(false);
@@ -82,7 +98,10 @@ export default function App() {
         const u = g.units.find(
           (u) => u.node === selected && !g.moved.includes(u.id),
         );
-        if (u) dispatch({ type: "march", unit: u.id, node: n });
+        if (u) {
+          dispatch({ type: "march", unit: u.id, node: n });
+          return;
+        }
       }
       setSelected(n);
     }
@@ -129,9 +148,9 @@ export default function App() {
           : g.phase === "build"
             ? `Place ${g.budget} more ${g.budget === 1 ? "wall" : "walls"} across the roads.`
             : g.phase === "deploy"
-              ? `Deploy ${g.budget} soldiers. The Runner’s location is protected.`
+              ? `Deploy ${g.budget} soldiers. Five per node; the Runner’s location is protected.`
               : g.phase === "move"
-                ? "Select a soldier’s location, then a connected destination. Or hold position."
+                ? "Select a group, then a connected destination. Excess soldiers remain ready. Or hold position."
                 : `${g.budget} movement points. Choose a connected location or end your turn.`;
   return (
     <div className="app">
@@ -143,6 +162,12 @@ export default function App() {
           </span>
         </button>
         <nav>
+          <button
+            className={screen === "settings" ? "active" : ""}
+            onClick={() => setScreen("settings")}
+          >
+            Settings
+          </button>
           <button
             className={screen === "history" ? "active" : ""}
             onClick={() => setScreen("history")}
@@ -262,7 +287,7 @@ export default function App() {
               rolling={rolling}
             />
             <div className="table-bottom">
-              <span>YELLOW WALLS · CRIMSON SOLDIERS · TEAL TRAVELER</span>
+              <span>STONE WALLS · CRIMSON SOLDIERS · TEAL TRAVELER</span>
               <button onClick={exportGame}>Export save ↗</button>
             </div>
           </section>
@@ -357,6 +382,7 @@ export default function App() {
                 {Array.from({ length: 10 }, (_, i) => (
                   <button
                     key={i}
+                    disabled={g.walls[i] >= WALL_CAP}
                     onClick={() => dispatch({ type: "wall", road: i })}
                   >
                     {labels[i < 5 ? i : i - 5]} —{" "}
@@ -380,7 +406,9 @@ export default function App() {
                       const count = g.units.filter((u) => u.node === n).length;
                       const disabled =
                         g.phase === "deploy"
-                          ? n === 5 || n === g.runner
+                          ? n === 5 ||
+                            n === g.runner ||
+                            unitCount(g, n) >= NODE_CAP
                           : g.phase === "run"
                             ? runCost(g, n) > g.budget
                             : false;
@@ -413,14 +441,7 @@ export default function App() {
                 </span>
               ))}
             </div>
-            <label className="speed">
-              <input
-                type="checkbox"
-                checked={fast}
-                onChange={(e) => setFast(e.target.checked)}
-              />{" "}
-              Fast computer turns
-            </label>
+
             <section className="journal">
               <p className="eyebrow">WORD FROM THE ROAD</p>
               {g.log.slice(0, 5).map((line, i) => (
@@ -443,9 +464,9 @@ export default function App() {
               <h2 style={{ color: colors[r] }}>{r}</h2>
               <p>
                 {r === "Builder"
-                  ? "Roll 3d4. Every two points buys one wall on any road. Stack as many walls as you like. A soldier sacrificed against a wall earns you one point. Unspent odd construction points are discarded."
+                  ? "Roll 3d4. Every two points buys one wall on any road. Each road holds at most five walls. A soldier sacrificed against a wall earns you one point. Unspent odd construction points are discarded."
                   : r === "Army"
-                    ? "Move each existing soldier at most one road, or let it hold position. An unobstructed arrival at the castle scores one point and removes the soldier. Crossing a blocked road sacrifices the soldier to remove one wall, scoring one point for the Builder. Then roll 2d6 and deploy that many soldiers among perimeter locations, excluding the Runner’s location."
+                    ? "Move each existing group at most one road, or let it hold position. Each node holds at most five soldiers; excess stay at the origin and can try another road. Soldiers that cross cannot move again this turn. An unobstructed arrival at the castle scores one point and removes the soldier. Crossing a blocked road sacrifices the soldier to remove one wall, scoring one point for the Builder. Then roll 2d6 and deploy that many soldiers among perimeter locations, excluding the Runner’s location."
                     : "Roll 1d8 for movement. An open road costs one point; a road with walls costs two points per wall, including the crossing, and destroys all its walls. Entering an occupied location removes one soldier, with no Builder point. You may end movement early."}
               </p>
             </section>
@@ -472,6 +493,31 @@ export default function App() {
             between devices. Clearing browser storage removes local games. This
             prototype preserves the original asymmetric rules; opponents and
             scoring are not balanced.
+          </p>
+          <button
+            className="primary"
+            onClick={() => setScreen(g ? "game" : "home")}
+          >
+            Return to {g ? "the table" : "the tavern"} →
+          </button>
+        </main>
+      )}
+      {screen === "settings" && (
+        <main className="paper">
+          <p className="eyebrow">MAKE YOURSELF AT HOME</p>
+          <h1>Table settings.</h1>
+          <p>Preferences are remembered on this browser.</p>{" "}
+          <label className="speed">
+            <input
+              type="checkbox"
+              checked={fast}
+              onChange={(e) => setFast(e.target.checked)}
+            />{" "}
+            Fast computer turns
+          </label>
+          <p>
+            Fast turns shorten computer pauses and dice animations. Turn this
+            off to enjoy a slower tavern pace.
           </p>
           <button
             className="primary"

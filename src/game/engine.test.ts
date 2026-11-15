@@ -98,3 +98,74 @@ describe("King’s Road", () => {
     }
   });
 });
+
+describe("capacity and group movement", () => {
+  it("limits every road to five walls", () => {
+    const g = createGame("Builder");
+    g.phase = "build";
+    g.budget = 2;
+    g.walls[0] = 5;
+    expect(act(g, { type: "wall", road: 0 })).toBe(g);
+  });
+  it("moves a group only into free spaces and leaves excess ready to take another road", () => {
+    const g = createGame("Army");
+    g.turn = "Army";
+    g.phase = "move";
+    g.units = [
+      ...Array.from({ length: 5 }, (_, i) => ({ id: i + 1, node: 0 })),
+      ...Array.from({ length: 3 }, (_, i) => ({ id: i + 6, node: 1 })),
+    ];
+    const n = act(g, { type: "march", unit: 1, node: 1 });
+    expect(n.units.filter((u) => u.node === 1)).toHaveLength(5);
+    expect(n.units.filter((u) => u.node === 0)).toHaveLength(3);
+    expect(n.moved).toEqual([1, 2]);
+    const next = act(n, { type: "march", unit: 3, node: 4 });
+    expect(next.units.filter((u) => u.node === 4)).toHaveLength(3);
+    expect(next.moved).toEqual([1, 2, 3, 4, 5]);
+  });
+  it("does not move a soldier twice as part of a second group", () => {
+    const g = createGame("Army");
+    g.turn = "Army";
+    g.phase = "move";
+    g.units = [
+      { id: 1, node: 0 },
+      { id: 2, node: 1 },
+    ];
+    const n = act(g, { type: "march", unit: 1, node: 1 });
+    const next = act(n, { type: "march", unit: 2, node: 2 });
+    expect(next.units.find((u) => u.id === 1)?.node).toBe(1);
+    expect(next.units.find((u) => u.id === 2)?.node).toBe(2);
+  });
+  it("clears walls with sacrifices before surviving group members enter the castle", () => {
+    const g = createGame("Army");
+    g.turn = "Army";
+    g.phase = "move";
+    g.units = Array.from({ length: 5 }, (_, i) => ({ id: i + 1, node: 0 }));
+    g.walls[5] = 2;
+    const n = act(g, { type: "march", unit: 1, node: 5 });
+    expect(n.scores.Builder).toBe(2);
+    expect(n.scores.Army).toBe(3);
+    expect(n.units).toHaveLength(0);
+    expect(n.walls[5]).toBe(0);
+  });
+  it("prevents deployment above five and ends recruitment if all eligible nodes are full", () => {
+    const g = createGame("Army");
+    g.turn = "Army";
+    g.phase = "deploy";
+    g.budget = 3;
+    g.units = [1, 2, 3, 4].flatMap((node) =>
+      Array.from({ length: 5 }, (_, i) => ({ id: node * 10 + i, node })),
+    );
+    expect(act(g, { type: "deploy", node: 1 })).toBe(g);
+    g.units.pop();
+    g.nextId = 99;
+    const n = act(g, { type: "deploy", node: 4 });
+    expect(n.turn).toBe("Runner");
+    expect(n.units.filter((u) => u.node === 4)).toHaveLength(5);
+  });
+  it("discards construction when all roads have reached capacity", () => {
+    const g = createGame("Builder");
+    g.walls.fill(5);
+    expect(act(g, { type: "roll" }).turn).toBe("Army");
+  });
+});

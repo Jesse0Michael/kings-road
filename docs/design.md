@@ -6,9 +6,9 @@ A static, browser-only game: one human chooses any role and plays against two co
 
 ## Art direction
 
-The selected direction is the carved tabletop concept: warm wood, a fixed shallow overhead perspective, muted crimson soldiers, golden-yellow Builder walls, and a unique teal hooded traveler with a staff for the Runner. Roads are dark grooves connecting the six nodes. Walls cross these roads perpendicularly. Dice and interface accents follow role colors.
+The selected direction is the carved tabletop concept: warm wood, a fixed shallow overhead perspective, muted crimson soldiers, warm stone Builder walls with gold ownership accents, and a unique teal hooded thief with a dagger and belt pouch for the Runner. The Army wears faceted steel helmets and carries crimson shields with swords tucked close. The castle is an engraved emblem inset into the board rather than a separate playing piece. Roads are dark grooves connecting the six nodes. Walls cross these roads perpendicularly. Dice and interface accents follow role colors.
 
-The board, castle, figures, dice, and wood grain are generated in code. Fonts are bundled locally. Numeric labels retain readable counts when forces or wall stacks grow large. Up to five soldiers and seven walls per location/road are modeled, with exact counts in labels and controls. The Runner animates between nodes; soldiers currently resolve their moves immediately.
+The board, castle engraving, figures, dice, and wood grain are generated in code. Wood uses separate color and bump textures with plank seams, knots, pores and worn varnish; the table has its own darker surface. Fonts are bundled locally. Numeric labels retain readable counts when forces or wall stacks grow large. Up to five soldiers and seven walls per location/road are modeled, with exact counts in labels and controls. The Runner animates between nodes; soldiers currently resolve their moves immediately.
 
 ## Rules interpretations
 
@@ -43,3 +43,11 @@ The Builder prioritizes pressured castle approaches, with diminishing value for 
 The engine determines seeded dice results. Rapier supplies gravity, collision, and tumbling; after the roll interval, dice transition to a readable authoritative result. Physical settling does not determine randomness. Reduced-motion users skip the rolling interval. A WebGL failure shows a fallback message while labeled game controls remain usable.
 
 The fixed camera and compact piece counts keep the scene suitable for modern desktop and mobile browsers. Geometry, textures, and fonts do not require external runtime requests. Rapier increases the initial bundle size; the production build currently warns about large JavaScript chunks.
+
+## Capacity playtest revision
+
+All ten roads now hold at most five walls. Perimeter nodes hold at most five Army soldiers. Movement selects all ready soldiers at the origin as a group: one soldier sacrifices per wall, then survivors cross up to the available destination capacity. Excess soldiers remain at the origin and stay eligible to try another road. Soldiers that moved cannot move again that turn. Castle arrivals score and leave immediately, so castle occupancy does not accumulate.
+
+Deployments cannot exceed capacity or use the Runner’s node. If no eligible spaces remain, unused reinforcements are discarded. If every road is full, unused construction is discarded. Older saved games are not destructively trimmed: existing over-cap groups/walls remain, but cannot receive additions until below the cap.
+
+Fast computer turns is now a browser-persisted preference in Settings, rather than a control beside the board.
