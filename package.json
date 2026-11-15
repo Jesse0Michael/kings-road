@@ -12,6 +12,7 @@
     "dice:generate": "node --experimental-strip-types scripts/generate-dice.mjs",
     "sfx:generate": "python3 scripts/generate-sfx.py",
     "music:prepare": "python3 scripts/prepare-music.py",
+    "icons:generate": "node scripts/generate-icons.mjs",
     "format": "prettier --write src tests scripts *.ts *.json *.html docs/*.md public/assets/textures/*.md README.md"
   },
   "dependencies": {

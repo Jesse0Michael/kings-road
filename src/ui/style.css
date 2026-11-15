@@ -197,13 +197,6 @@ h2 {
   margin-top: 20px;
   letter-spacing: 0.3px;
 }
-.text-button {
-  padding: 4px 0;
-  font-size: 11px;
-  color: #a99984;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
 .hero-board {
   position: relative;
   min-width: 0;
@@ -286,10 +279,6 @@ footer {
   letter-spacing: 1.2px;
   color: #9b8266;
 }
-.table-bottom button {
-  font-size: 10px;
-  color: #d5bb91;
-}
 aside {
   padding: 30px 25px;
   background: #291e18;
@@ -335,11 +324,6 @@ aside {
   font-size: 27px;
   font-weight: 400;
   color: var(--role);
-}
-.score > b small {
-  display: inline;
-  margin-left: 4px;
-  font-family: Arial, sans-serif;
 }
 .turn-panel {
   border-top: 1px solid #55402c;
@@ -420,18 +404,6 @@ aside {
 }
 .locations {
   margin-top: 22px;
-}
-.board-counts {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 18px;
-  color: #aa9478;
-  font-size: 10px;
-}
-.board-counts b {
-  color: #e2c7a2;
 }
 .speed {
   display: flex;
@@ -673,9 +645,6 @@ aside {
     font-size: 20px;
     width: 18px;
   }
-  .score > b small {
-    font-size: 7px;
-  }
   aside {
     padding: 25px;
   }
@@ -728,6 +697,33 @@ aside {
   flex-wrap: nowrap;
   background: #2e241ddd;
 }
+.board-scoreboard .score.winner {
+  position: relative;
+  z-index: 1;
+  border-color: var(--role);
+  background: color-mix(in srgb, var(--role) 18%, #30231b);
+  box-shadow: 0 0 0 1px var(--role);
+  animation: winner-pulse 1.6s ease-in-out infinite;
+}
+.board-scoreboard .score.winner small {
+  color: #f3dfb3;
+  font-weight: 600;
+}
+@keyframes winner-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--role) 55%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .board-scoreboard .score.winner {
+    animation: none;
+  }
+}
 .board-scoreboard .score strong {
   font-size: 16px;
 }
@@ -777,9 +773,6 @@ aside {
   }
   .board-scoreboard .score small {
     font-size: 6px;
-  }
-  .board-scoreboard .score > b small {
-    font-size: 7px;
   }
 }
 

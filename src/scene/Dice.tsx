@@ -185,7 +185,7 @@ function Die({
       z = THREE.MathUtils.lerp(a[2], b[2], mix);
     group.current.position.set(
       shift + x * Math.cos(yaw) + z * Math.sin(yaw),
-      -0.205 + THREE.MathUtils.lerp(a[1], b[1], mix),
+      -0.225 + THREE.MathUtils.lerp(a[1], b[1], mix),
       3.65 - x * Math.sin(yaw) + z * Math.cos(yaw),
     );
     qa.set(a[3], a[4], a[5], a[6]);

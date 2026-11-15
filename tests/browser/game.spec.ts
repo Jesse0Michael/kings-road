@@ -1,5 +1,6 @@
 import { createGame } from "../../src/game/engine";
 import { test, expect } from "@playwright/test";
+import { resumeGame } from "./fixtures";
 test("new game, 3D scene, movement, reload, rules, and mobile", async ({
   page,
 }, testInfo) => {
@@ -71,13 +72,18 @@ test("human Builder can build and human Army can deploy", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /Builder 3/ }).click();
   await page.getByRole("button", { name: "Take your seat as Builder" }).click();
-  await page.getByRole("button", { name: "Roll", exact: true }).click();
+  const roll = page.getByRole("button", { name: "Roll", exact: true });
+  expect(await roll.evaluate((e) => e.closest(".table-area") !== null)).toBe(
+    true,
+  );
+  await roll.click();
+  await expect(roll).toBeDisabled();
   await expect(page.locator(".roads")).toBeVisible();
   const budget = await page.evaluate(
     () => JSON.parse(localStorage.getItem("kings-road.game.v1")!).budget,
   );
   for (let i = 0; i < budget; i++)
-    await page.locator(".roads button").first().click();
+    await page.locator(".roads button:enabled").first().click();
   await page.getByRole("button", { name: /KING’S ROAD/ }).click();
   await page.getByRole("button", { name: /Army 2/ }).click();
   page.once("dialog", (d) => d.accept());
@@ -99,29 +105,30 @@ test("human Builder can build and human Army can deploy", async ({ page }) => {
   ).toBe(1);
 });
 
-test("imports a game, wins, records history once, and exports", async ({
+test("a resumed game highlights its winner and records history once", async ({
   page,
-}) => {
+}, testInfo) => {
   const g = createGame("Runner", 123);
   g.turn = "Runner";
   g.phase = "run";
   g.budget = 2;
   g.scores.Runner = 14;
-  await page.goto("/");
-  await page.locator("input[type=file]").setInputFiles({
-    name: "save.json",
-    mimeType: "application/json",
-    buffer: Buffer.from(JSON.stringify(g)),
-  });
+  await resumeGame(page, g);
   await page.locator(".locations button").nth(1).click();
   await expect(
     page.getByRole("heading", { name: "Runner prevails" }),
   ).toBeVisible();
-  const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: /Export save/ }).click();
-  expect((await downloadPromise).suggestedFilename()).toBe(
-    "kings-road-save.json",
-  );
+  const winner = page.getByLabel("Game scores").locator(".winner");
+  await expect(winner).toContainText("Runner");
+  await expect(winner).toContainText("WINNER");
+  await expect(winner.locator("b")).toHaveText("15");
+  await expect(winner).toHaveCSS("animation-name", "winner-pulse");
+  await page.screenshot({
+    path: testInfo.outputPath("winner.png"),
+    fullPage: true,
+  });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(winner).toHaveCSS("animation-name", "none");
   await page.getByRole("button", { name: "Chronicle" }).click();
   await expect(
     page.getByRole("heading", { name: "Runner prevailed" }),
@@ -131,13 +138,14 @@ test("imports a game, wins, records history once, and exports", async ({
   await expect(
     page.getByRole("heading", { name: "Runner prevailed" }),
   ).toHaveCount(1);
-  await page.getByRole("button", { name: /KING’S ROAD/ }).click();
-  await page.locator("input[type=file]").setInputFiles({
-    name: "bad.json",
-    mimeType: "application/json",
-    buffer: Buffer.from('{"version":999}'),
-  });
-  await expect(page.getByRole("alert")).toContainText("not a valid");
+  await page.evaluate(() =>
+    localStorage.setItem("kings-road.game.v1", '{"version":999}'),
+  );
+  await page.reload();
+  await expect(page.getByRole("button", { name: /^Continue/ })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Take your seat as Runner" }),
+  ).toBeVisible();
 });
 
 test("Runner scores a destination once per turn through the actual controls", async ({
@@ -147,12 +155,11 @@ test("Runner scores a destination once per turn through the actual controls", as
   g.turn = "Runner";
   g.phase = "run";
   g.budget = 8;
-  await page.goto("/");
-  await page.locator("input[type=file]").setInputFiles({
-    name: "runner.json",
-    mimeType: "application/json",
-    buffer: Buffer.from(JSON.stringify(g)),
-  });
+  g.log = ["Runner explored location 5."];
+  await resumeGame(page, g);
+  await expect(page.locator(".journal")).toContainText(
+    "Runner explored location V.",
+  );
   for (const n of [1, 0, 1, 0, 1])
     await page.locator(".locations button").nth(n).click();
   const state = await page.evaluate(() =>
@@ -160,12 +167,15 @@ test("Runner scores a destination once per turn through the actual controls", as
   );
   expect(state.scores.Runner).toBe(2);
   expect(state.scored).toEqual([1, 0]);
+  await expect(page.locator(".journal")).toContainText(
+    "Runner explored location II.",
+  );
   await expect(
     page.getByLabel("Game scores").locator(".score").nth(2),
   ).toContainText("2");
 });
 
-test("rapid placements remain enabled while pieces animate and Roll is on the board", async ({
+test("rapid placements remain enabled while pieces animate", async ({
   page,
 }, testInfo) => {
   const errors: string[] = [];
@@ -173,12 +183,7 @@ test("rapid placements remain enabled while pieces animate and Roll is on the bo
   const g = createGame("Builder", 42);
   g.phase = "build";
   g.budget = 5;
-  await page.goto("/");
-  await page.locator("input[type=file]").setInputFiles({
-    name: "builder.json",
-    mimeType: "application/json",
-    buffer: Buffer.from(JSON.stringify(g)),
-  });
+  await resumeGame(page, g);
   await page.clock.install();
   await page.clock.pauseAt(new Date());
   await page.locator(".roads button").first().click();
@@ -194,23 +199,6 @@ test("rapid placements remain enabled while pieces animate and Roll is on the bo
   await page.screenshot({
     path: testInfo.outputPath("overlapping-placements.png"),
   });
-  const rollGame = createGame("Runner", 19);
-  rollGame.turn = "Runner";
-  rollGame.phase = "roll";
-  await page.locator("input[type=file]").setInputFiles({
-    name: "roll.json",
-    mimeType: "application/json",
-    buffer: Buffer.from(JSON.stringify(rollGame)),
-  });
-  const roll = page.getByRole("button", { name: "Roll", exact: true });
-  expect(await roll.evaluate((e) => e.closest(".table-area") !== null)).toBe(
-    true,
-  );
-  await roll.click();
-  await expect(roll).toBeDisabled();
-  // Keep this animation test on virtual time, including the roll's commit timer.
-  await page.clock.fastForward(2100);
-  await expect(page.getByLabel("Dice results")).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -218,15 +206,10 @@ test("large road tap targets pick the intended edge; Army selections and mobile 
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
   const g = createGame("Builder", 42);
   g.phase = "build";
   g.budget = 5;
-  await page.locator("input[type=file]").setInputFiles({
-    name: "builder.json",
-    mimeType: "application/json",
-    buffer: Buffer.from(JSON.stringify(g)),
-  });
+  await resumeGame(page, g);
   // Project a point 0.30 board-units beside the engraved road into canvas coordinates.
   const { PerspectiveCamera, Vector3 } = await import("three");
   const canvas = page.locator("canvas");
@@ -265,11 +248,8 @@ test("large road tap targets pick the intended edge; Army selections and mobile 
     { id: 1, node: 1 },
     { id: 2, node: 1 },
   ];
-  await page.locator("input[type=file]").setInputFiles({
-    name: "army.json",
-    mimeType: "application/json",
-    buffer: Buffer.from(JSON.stringify(army)),
-  });
+  army.nextId = 3;
+  await resumeGame(page, army);
   await expect(page.locator(".locations button").nth(1)).toBeEnabled();
   await expect(page.locator(".locations button").nth(2)).toBeDisabled();
   await page.locator(".locations button").nth(1).click();

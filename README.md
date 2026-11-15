@@ -48,9 +48,8 @@ Pieces drop, lift, glide, and settle without locking your next action. Computer 
 
 - Continue the current game from the home screen.
 - The Chronicle keeps the most recent 100 completed games and their final scores.
-- **Export save** downloads the active game as JSON; **Import a saved game** resumes it on another browser or device.
 
-Saves belong to this browser and web address. Clearing browser storage, changing hosts/ports, or switching devices will not carry them over automatically. Export before replacing a game or clearing storage. Export/import does not transfer the completed-game Chronicle.
+Saves belong to this browser and web address. Starting a new game replaces the active game. Clearing browser storage removes saved games and the Chronicle; games do not transfer between browsers, devices, or web addresses.
 
 Read the [original rules and current clarifications](docs/rules.md) and [implementation decisions](docs/design.md).
 
@@ -73,7 +72,10 @@ src/
   main.tsx               # Entry point and locally bundled fonts
 public/assets/textures/  # Bundled table and board wood textures
 public/assets/audio/     # Web music copy and original short sound effects
+public/icons/            # Carved Seal favicons, touch and home-screen icons
+public/site.webmanifest  # Application identity and home-screen launch settings
 assets/audio-source/     # Original song, excluded from the web build
+assets/brand/            # Approved icon master, excluded from the web build
 scripts/generate-dice.mjs # Development-only physics trajectory generator
 docs/                    # Original rules and current design decisions
 tests/browser/           # Playwright interaction tests
@@ -88,11 +90,13 @@ npx playwright install chromium  # Once, if no system Chromium is available
 npm run test:browser              # Starts Vite automatically if needed
 ```
 
-Browser tests cover all three roles, saves/reload, import/export, immediate victory, history, Runner scoring, overlapping placements, road taps, Army targets, and mobile layout. Tests use system Chromium when available, otherwise Playwright’s bundled Chromium. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to override its location.
+Browser tests cover all three roles, saves/reload, the winning score highlight, history, Runner scoring, Roman-numeral journal entries, overlapping placements, road taps, Army targets, audio controls, and mobile layout. Tests use system Chromium when available, otherwise Playwright’s bundled Chromium. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to override its location.
 
 To regenerate the committed dice recordings, use Node **22.18 or newer**, run `npm run dice:generate`, then `npm test`. Ordinary development and deployment use the committed recordings and do not need this step.
 
-Audio assets are also committed. Optional regeneration: `npm run sfx:generate` needs Python 3; `npm run music:prepare` additionally needs FFmpeg/ffprobe. See [audio credits and details](public/assets/audio/README.md). [Icon concepts and an effects preview](docs/mockups/README.md) are available for review.
+Audio assets are also committed. Optional regeneration: `npm run sfx:generate` needs Python 3; `npm run music:prepare` additionally needs FFmpeg/ffprobe. See [audio credits and details](public/assets/audio/README.md).
+
+**Carved Seal** is the selected icon for browser tabs, bookmarks, and home screens. The committed set covers ICO/PNG favicons, Apple touch icons, and Android regular/maskable icons. `npm run icons:generate` regenerates them from the [approved master](assets/brand/README.md) using ImageMagick 7. The web manifest supports a standalone home-screen launch; it does not add offline caching. [Original icon concepts and an effects preview](docs/mockups/README.md) remain available.
 
 ## GitHub Pages deployment
 
@@ -102,4 +106,4 @@ The published site is **https://jesse0michael.github.io/kings-road/**. The deplo
 
 ## Current limits
 
-This is a playtestable prototype of intentionally asymmetric, unbalanced rules. Computer rivals use simple public-information strategies. There is no multiplayer, cloud synchronization, difficulty selector, or installable offline/PWA cache. All game logic runs in the browser, but reloading still requires access to the host unless the browser has retained the necessary assets. The camera is fixed, and figures are stylized procedural models.
+This is a playtestable prototype of intentionally asymmetric, unbalanced rules. Computer rivals use simple public-information strategies. There is no multiplayer, cloud synchronization, difficulty selector, or offline/PWA cache. All game logic runs in the browser, but reloading still requires access to the host unless the browser has retained the necessary assets. The camera is fixed, and figures are stylized procedural models.

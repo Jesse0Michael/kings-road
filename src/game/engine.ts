@@ -1,5 +1,6 @@
 export const roles = ["Builder", "Army", "Runner"] as const;
 export type Role = (typeof roles)[number];
+export const nodeLabels = ["I", "II", "III", "IV", "V", "♜"] as const;
 export const roads = Array.from({ length: 5 }, (_, i) => [
   i,
   (i + 1) % 5,
@@ -206,7 +207,7 @@ export function act(state: Game, a: Action): Game {
       point(g, "Runner");
       note(
         g,
-        `Runner explored ${a.node === 5 ? "the castle" : `location ${a.node + 1}`}.`,
+        `Runner explored ${a.node === 5 ? "the castle" : `location ${nodeLabels[a.node]}`}.`,
       );
     }
     if (!g.visited.includes(a.node)) g.visited.push(a.node);

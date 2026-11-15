@@ -109,7 +109,7 @@ it("a rebuilt wall can coexist with the old wall debris without sharing its iden
   expect(walls).toHaveLength(2);
   expect(walls[0].uid).not.toBe(walls[1].uid);
 });
-it("imports restore without replaying movement from the old game", () => {
+it("new games restore without replaying movement from the old game", () => {
   const g = createGame("Army"),
     fresh = createGame("Runner");
   g.units = [{ id: 1, node: 0 }];

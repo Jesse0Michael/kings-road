@@ -50,7 +50,7 @@ it("coalesces an Army group and distinguishes the castle from a death", () => {
   expect(after.scores.Army).toBe(3);
 });
 
-it("reset/import does not replay old sounds, and reduced motion has no queued delay", () => {
+it("reset/resume does not replay old sounds, and reduced motion has no queued delay", () => {
   const before = createGame("Runner", 17);
   before.turn = "Runner";
   before.phase = "run";

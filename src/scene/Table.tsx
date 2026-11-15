@@ -201,15 +201,6 @@ function Scene({
         onNode={onNode}
         onRoad={onRoad}
       />
-      {/* An inset leather rolling strip grounds the dice on the table. */}
-      <mesh
-        receiveShadow
-        position={[0, -0.222, 3.65]}
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
-        <planeGeometry args={[4.6, 1.35]} />
-        <meshStandardMaterial color="#372a22" roughness={0.93} />
-      </mesh>
       <Dice roll={diceRoll ?? null} />
     </>
   );

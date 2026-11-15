@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { BOARD_RADIUS, positions } from "./boardLayout";
-import { roads } from "../game/engine";
+import { roads, nodeLabels } from "../game/engine";
 export const texturePaths = {
   table: `${import.meta.env.BASE_URL}assets/textures/tavern-table.webp`,
   board: `${import.meta.env.BASE_URL}assets/textures/board-wood.webp`,
@@ -68,7 +68,7 @@ export function engravedBoard(image: CanvasImageSource) {
     for (const radius of [0.58, 0.64])
       groove((c) => c.arc(px(x), px(z), radius * scale, 0, Math.PI * 2), 0.018);
     if (i < 5) {
-      const label = ["I", "II", "III", "IV", "V"][i];
+      const label = nodeLabels[i];
       for (const [c, col, offset] of [
         [ctx, "#d6ac71", 1.3],
         [ctx, "#38261a", 0],

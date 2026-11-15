@@ -5,22 +5,20 @@ import { nodeSelectable } from "../scene/boardLayout";
 import { aiAction } from "../game/ai";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  NODE_CAP,
   WALL_CAP,
-  unitCount,
   act,
   rollDice,
   createGame,
   Game,
   neighbors,
+  nodeLabels as labels,
   Role,
   roles,
   runCost,
 } from "../game/engine";
 import { Table, colors } from "../scene/Table";
-import { history, loadGame, save, validGame } from "../persistence";
+import { history, loadGame, save } from "../persistence";
 import { useGameAudio } from "../audio/useGameAudio";
-const labels = ["I", "II", "III", "IV", "V", "♜"];
 const descriptions = {
   Builder:
     "Raise walls. Shape the battlefield. Earn points when soldiers sacrifice themselves.",
@@ -89,7 +87,6 @@ export default function App() {
     }
   }, [fast]);
   const [error, setError] = useState("");
-  const upload = useRef<HTMLInputElement>(null);
   const busy = useRef(false);
   const g = game;
   const human = g?.human === g?.turn;
@@ -102,7 +99,7 @@ export default function App() {
         save(g);
       } catch {
         setError(
-          "Your browser could not save this game. Export a backup before leaving.",
+          "Your browser could not save this game. Progress will last only while this tab stays open.",
         );
       }
     }
@@ -188,46 +185,6 @@ export default function App() {
     setSelected(null);
     setScreen("game");
     setError("");
-  }
-  function exportGame() {
-    if (!g) return;
-    const url = URL.createObjectURL(
-      new Blob([JSON.stringify(g, null, 2)], { type: "application/json" }),
-    );
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "kings-road-save.json";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-  async function importGame(file: File | undefined) {
-    if (!file) return;
-    try {
-      if (file.size > 1000000) throw Error();
-      const parsed = JSON.parse(await file.text());
-      if (!validGame(parsed)) throw Error();
-      resetMotion();
-      currentGame.current = parsed;
-      setGame(parsed);
-      setSelected(null);
-      setDiceRoll(
-        parsed.dice.length
-          ? {
-              id: ++sequence.current,
-              role: parsed.turn,
-              values: parsed.dice,
-              started: 0,
-              duration: 0,
-              seed: parsed.seed,
-            }
-          : null,
-      );
-      setScreen("game");
-      setError("");
-    } catch {
-      setError("That file is not a valid King’s Road save.");
-    }
-    if (upload.current) upload.current.value = "";
   }
   const hint = !g
     ? ""
@@ -321,7 +278,7 @@ export default function App() {
                   g &&
                   !g.winner &&
                   !window.confirm(
-                    "Start a new game? Your current game will be replaced. Export it first if you want to keep it.",
+                    "Start a new game? Your current game will be replaced.",
                   )
                 )
                   return;
@@ -338,12 +295,6 @@ export default function App() {
             <p className="fine">
               One human · Two computer rivals · Saved on this browser
             </p>
-            <button
-              className="text-button"
-              onClick={() => upload.current?.click()}
-            >
-              Import a saved game
-            </button>
           </section>
           <div className="hero-board">
             <Table
@@ -373,7 +324,7 @@ export default function App() {
               {roles.map((r) => (
                 <div
                   key={r}
-                  className={`score ${g.turn === r ? "current" : ""}`}
+                  className={`score ${!g.winner && g.turn === r ? "current" : ""} ${g.winner === r ? "winner" : ""}`}
                   style={{ "--role": colors[r] } as React.CSSProperties}
                 >
                   <span className="role-icon">
@@ -383,13 +334,14 @@ export default function App() {
                     <strong>{r}</strong>
                     <small>
                       {g.human === r ? "YOU" : "COMPUTER"}
-                      {g.turn === r ? " · AT PLAY" : ""}
+                      {g.winner === r
+                        ? " · WINNER"
+                        : !g.winner && g.turn === r
+                          ? " · AT PLAY"
+                          : ""}
                     </small>
                   </div>
-                  <b>
-                    {g.scores[r]}
-                    <small>/ 15</small>
-                  </b>
+                  <b>{g.scores[r]}</b>
                 </div>
               ))}
             </div>
@@ -421,7 +373,6 @@ export default function App() {
             )}
             <div className="table-bottom">
               <span>STONE WALLS · CRIMSON SOLDIERS · TEAL TRAVELER</span>
-              <button onClick={exportGame}>Export save ↗</button>
             </div>
           </section>
           <aside>
@@ -529,19 +480,15 @@ export default function App() {
                   </div>
                 </div>
               )}
-            <div className="board-counts">
-              {labels.map((label, n) => (
-                <span key={n}>
-                  {label} <b>{g.units.filter((u) => u.node === n).length}</b>
-                  {g.runner === n ? " ♟" : ""}
-                </span>
-              ))}
-            </div>
-
             <section className="journal">
               <p className="eyebrow">WORD FROM THE ROAD</p>
               {g.log.slice(0, 5).map((line, i) => (
-                <p key={i}>{line}</p>
+                <p key={i}>
+                  {line.replace(
+                    /\blocation ([1-5])\b/g,
+                    (_match, n: string) => `location ${labels[Number(n) - 1]}`,
+                  )}
+                </p>
               ))}
             </section>
           </aside>
@@ -585,10 +532,10 @@ export default function App() {
           </p>
           <h2>Your chronicle</h2>
           <p>
-            Games save automatically in this browser. Export a save to move it
-            between devices. Clearing browser storage removes local games. This
-            prototype preserves the original asymmetric rules; opponents and
-            scoring are not balanced.
+            Games save automatically in this browser. Use Continue to return to
+            your current game. Clearing browser storage removes local games.
+            This prototype preserves the original asymmetric rules; opponents
+            and scoring are not balanced.
           </p>
           <button
             className="primary"
@@ -702,13 +649,6 @@ export default function App() {
           </button>
         </main>
       )}
-      <input
-        hidden
-        type="file"
-        accept="application/json,.json"
-        ref={upload}
-        onChange={(e) => importGame(e.target.files?.[0])}
-      />
       <footer>
         <span>✦ KHYRIEL · KING’S ROAD</span>
         <span>A little strategy. A little fortune.</span>

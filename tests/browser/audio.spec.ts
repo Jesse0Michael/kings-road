@@ -1,11 +1,18 @@
 import { test, expect } from "@playwright/test";
 import { createGame } from "../../src/game/engine";
+import { resumeGame } from "./fixtures";
 
 declare global {
   interface Window {
     __krAudio: {
       music: HTMLMediaElement | null;
-      starts: { when: number; duration: number; offset: number; now: number }[];
+      starts: {
+        when: number;
+        duration: number;
+        offset: number;
+        now: number;
+        wallWhen: number;
+      }[];
     };
   }
 }
@@ -29,6 +36,7 @@ test.beforeEach(async ({ page }) => {
         offset,
         duration: this.buffer?.duration ?? 0,
         now: this.context.currentTime,
+        wallWhen: performance.now() / 1000 + when - this.context.currentTime,
       });
       return start.call(this, when, offset, duration);
     };
@@ -128,23 +136,19 @@ test("music loops after interaction; volumes, mute, hidden tabs and saved settin
 test("real decoded effects follow queued Runner movement and capture", async ({
   page,
 }) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByRole("button", { name: "Test sound" }).click();
-  await expect
-    .poll(() => page.evaluate(() => window.__krAudio.starts.length))
-    .toBe(2);
   const g = createGame("Runner", 17);
   g.turn = "Runner";
   g.phase = "run";
   g.budget = 8;
   g.units = [{ id: 1, node: 2 }];
   g.nextId = 2;
-  await page.locator("input[type=file]").setInputFiles({
-    name: "runner.json",
-    mimeType: "application/json",
-    buffer: Buffer.from(JSON.stringify(g)),
-  });
+  await resumeGame(page, g);
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Test sound" }).click();
+  await expect
+    .poll(() => page.evaluate(() => window.__krAudio.starts.length))
+    .toBe(2);
+  await page.getByRole("button", { name: /^Return to the table/ }).click();
   await expect(page.locator(".locations")).toBeVisible();
   await page.evaluate(() => {
     window.__krAudio.starts = [];
@@ -155,7 +159,8 @@ test("real decoded effects follow queued Runner movement and capture", async ({
   const moves = starts.filter((s) => Math.abs(s.duration - 0.88) < 0.005);
   const capture = starts.find((s) => Math.abs(s.duration - 0.42) < 0.005)!;
   expect(moves).toHaveLength(2);
-  expect(moves[1].when - moves[0].when).toBeGreaterThan(0.65);
+  // Compare presentation deadlines across dispatches; a headless audio clock can lag wall time.
+  expect(moves[1].wallWhen - moves[0].wallWhen).toBeGreaterThan(0.65);
   expect(capture.when - moves[1].when).toBeGreaterThan(0.55);
   expect(starts.filter((s) => Math.abs(s.duration - 0.5) < 0.005)).toHaveLength(
     2,
