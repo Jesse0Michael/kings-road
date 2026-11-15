@@ -15,10 +15,10 @@ test("new game, 3D scene, movement, reload, rules, and mobile", async ({
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByLabel("Fast computer turns").check();
   await page.getByRole("button", { name: /^Return to the table/ }).click();
-  await expect(page.getByRole("button", { name: "Roll the dice" })).toBeVisible(
-    { timeout: 45000 },
-  );
-  await page.getByRole("button", { name: "Roll the dice" }).click();
+  await expect(
+    page.getByRole("button", { name: "Roll", exact: true }),
+  ).toBeVisible({ timeout: 45000 });
+  await page.getByRole("button", { name: "Roll", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "End movement" }),
   ).toBeVisible();
@@ -71,7 +71,7 @@ test("human Builder can build and human Army can deploy", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /Builder 3/ }).click();
   await page.getByRole("button", { name: "Take your seat as Builder" }).click();
-  await page.getByRole("button", { name: "Roll the dice" }).click();
+  await page.getByRole("button", { name: "Roll", exact: true }).click();
   await expect(page.locator(".roads")).toBeVisible();
   const budget = await page.evaluate(
     () => JSON.parse(localStorage.getItem("kings-road.game.v1")!).budget,
@@ -85,10 +85,10 @@ test("human Builder can build and human Army can deploy", async ({ page }) => {
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByLabel("Fast computer turns").check();
   await page.getByRole("button", { name: /^Return to the table/ }).click();
-  await expect(page.getByRole("button", { name: "Roll the dice" })).toBeVisible(
-    { timeout: 30000 },
-  );
-  await page.getByRole("button", { name: "Roll the dice" }).click();
+  await expect(
+    page.getByRole("button", { name: "Roll", exact: true }),
+  ).toBeVisible({ timeout: 30000 });
+  await page.getByRole("button", { name: "Roll", exact: true }).click();
   await expect(page.locator(".locations")).toBeVisible();
   await page.locator(".locations button").nth(1).click();
   expect(

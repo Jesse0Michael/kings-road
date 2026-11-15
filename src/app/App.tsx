@@ -348,28 +348,42 @@ export default function App() {
           </section>
           <aside>
             <section className="turn-panel">
-              {animating && (
-                <p className="eyebrow" role="status">
-                  Pieces settling…
-                </p>
-              )}
-              <p className="eyebrow">
-                {g.winner
-                  ? "THE GAME IS WON"
-                  : human
-                    ? "YOUR TURN"
-                    : "RIVAL’S TURN"}
-              </p>
-              <h2>
-                {g.winner
-                  ? `${g.winner} prevails`
-                  : g.turn === "Builder"
-                    ? "Raise your defenses"
-                    : g.turn === "Army"
-                      ? "March on the castle"
-                      : "Follow the road"}
-              </h2>
-              <p aria-live="polite">{hint}</p>
+              <div className="turn-summary">
+                {!g.winner && human && g.phase === "roll" && (
+                  <button
+                    className="roll-button"
+                    disabled={rolling || animating}
+                    aria-busy={rolling}
+                    onClick={() => dispatch({ type: "roll" })}
+                  >
+                    Roll
+                  </button>
+                )}
+                <div className="turn-copy">
+                  {animating && (
+                    <p className="eyebrow" role="status">
+                      Pieces settling…
+                    </p>
+                  )}
+                  <p className="eyebrow">
+                    {g.winner
+                      ? "THE GAME IS WON"
+                      : human
+                        ? "YOUR TURN"
+                        : "RIVAL’S TURN"}
+                  </p>
+                  <h2>
+                    {g.winner
+                      ? `${g.winner} prevails`
+                      : g.turn === "Builder"
+                        ? "Raise your defenses"
+                        : g.turn === "Army"
+                          ? "March on the castle"
+                          : "Follow the road"}
+                  </h2>
+                  <p aria-live="polite">{hint}</p>
+                </div>
+              </div>
               {g.dice.length > 0 && (
                 <div className="dice-results" aria-label="Dice results">
                   {g.dice.map((d, i) => (
@@ -379,15 +393,6 @@ export default function App() {
                   ))}
                   <small>{g.dice.reduce((a, b) => a + b, 0)} total</small>
                 </div>
-              )}
-              {!g.winner && human && g.phase === "roll" && (
-                <button
-                  className="primary"
-                  disabled={rolling || animating}
-                  onClick={() => dispatch({ type: "roll" })}
-                >
-                  {rolling ? "Rolling…" : "Roll the dice"} <span>◇</span>
-                </button>
               )}
               {!g.winner &&
                 human &&

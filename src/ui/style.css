@@ -738,3 +738,43 @@ aside {
     font-size: 7px;
   }
 }
+
+.turn-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.turn-copy {
+  flex: 1;
+  min-width: 0;
+}
+.turn-copy > .eyebrow:first-child {
+  margin-top: 0;
+}
+.turn-copy h2 {
+  margin: 8px 0;
+  font-size: 26px;
+}
+.turn-copy > p:not(.eyebrow) {
+  color: #b9a58c;
+  font-size: 12px;
+  line-height: 1.8;
+  margin: 8px 0 16px;
+}
+.roll-button {
+  flex: 0 0 76px;
+  min-height: 64px;
+  border: 1px solid #e8c583;
+  border-radius: 4px;
+  background: #d4ad67;
+  color: #241911;
+  font-weight: 700;
+  font-size: 16px;
+}
+.roll-button:hover:not(:disabled) {
+  background: #ecc788;
+  color: #241911;
+}
+.roll-button:disabled {
+  opacity: 0.55;
+}
