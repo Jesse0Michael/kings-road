@@ -1,5 +1,3 @@
-import { useRef } from "react";
-import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 type Point = [number, number, number];
@@ -108,36 +106,9 @@ export function Soldier({
     </group>
   );
 }
-export function Runner({
-  node,
-  positions,
-}: {
-  node: number;
-  positions: [number, number][];
-}) {
-  const ref = useRef<THREE.Group>(null);
-  useFrame((_, dt) => {
-    if (ref.current) {
-      ref.current.position.x = THREE.MathUtils.damp(
-        ref.current.position.x,
-        positions[node][0],
-        8,
-        dt,
-      );
-      ref.current.position.z = THREE.MathUtils.damp(
-        ref.current.position.z,
-        positions[node][1],
-        8,
-        dt,
-      );
-    }
-  });
+export function Runner() {
   return (
-    <group
-      ref={ref}
-      position={[positions[node][0], 0.3, positions[node][1]]}
-      rotation={[0, -0.2, 0]}
-    >
+    <group>
       <mesh castShadow position={[0, 0.04, 0]}>
         <cylinderGeometry args={[0.22, 0.25, 0.08, 12]} />
         <meshStandardMaterial color="#17574f" />

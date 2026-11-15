@@ -1,5 +1,6 @@
 import { woodSurface, castleEngraving } from "./materials";
-import { Soldier, Runner, StoneWall } from "./Pieces";
+import { AnimatedPieces } from "./AnimatedPieces";
+import { positions } from "./motion";
 import { Suspense } from "react";
 import {
   Physics,
@@ -16,11 +17,6 @@ export const colors = {
   Army: "#a83b42",
   Runner: "#35a99b",
 };
-const positions: [number, number][] = Array.from({ length: 5 }, (_, i) => [
-  Math.sin((i * Math.PI * 2) / 5) * 3.05,
-  -Math.cos((i * Math.PI * 2) / 5) * 3.05,
-]);
-positions.push([0, 0]);
 function dieTexture(value: number, color: string) {
   const c = document.createElement("canvas");
   c.width = 128;
@@ -280,17 +276,6 @@ function Scene({
                 }
               />
             </mesh>
-            {Array.from({ length: Math.min(game.walls[i], 7) }, (_, j) => (
-              <StoneWall
-                key={j}
-                position={[
-                  0,
-                  0.17,
-                  (j - (Math.min(game.walls[i], 7) - 1) / 2) * 0.27,
-                ]}
-                onClick={() => onRoad(i)}
-              />
-            ))}
           </group>
         );
       })}
@@ -347,23 +332,7 @@ function Scene({
           )}
         </group>
       ))}
-      {[0, 1, 2, 3, 4].flatMap((n) => {
-        const us = game.units.filter((u) => u.node === n);
-        return us
-          .slice(0, 5)
-          .map((u, j) => (
-            <Soldier
-              key={u.id}
-              onClick={() => onNode(n)}
-              position={[
-                positions[n][0] + ((j % 3) - 1) * 0.25,
-                0.3,
-                positions[n][1] + Math.floor(j / 3) * 0.27 - 0.1,
-              ]}
-            />
-          ));
-      })}
-      <Runner node={game.runner} positions={positions} />
+      <AnimatedPieces game={game} onNode={onNode} onRoad={onRoad} />
       {positions.map(([x, z], n) => (
         <Marker
           key={n}

@@ -16,7 +16,7 @@ test("new game, 3D scene, movement, reload, rules, and mobile", async ({
   await page.getByLabel("Fast computer turns").check();
   await page.getByRole("button", { name: /^Return to the table/ }).click();
   await expect(page.getByRole("button", { name: "Roll the dice" })).toBeVisible(
-    { timeout: 20000 },
+    { timeout: 45000 },
   );
   await page.getByRole("button", { name: "Roll the dice" }).click();
   await expect(
@@ -86,7 +86,7 @@ test("human Builder can build and human Army can deploy", async ({ page }) => {
   await page.getByLabel("Fast computer turns").check();
   await page.getByRole("button", { name: /^Return to the table/ }).click();
   await expect(page.getByRole("button", { name: "Roll the dice" })).toBeVisible(
-    { timeout: 15000 },
+    { timeout: 30000 },
   );
   await page.getByRole("button", { name: "Roll the dice" }).click();
   await expect(page.locator(".locations")).toBeVisible();
@@ -148,13 +148,11 @@ test("Runner scores a destination once per turn through the actual controls", as
   g.phase = "run";
   g.budget = 8;
   await page.goto("/");
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "runner.json",
-      mimeType: "application/json",
-      buffer: Buffer.from(JSON.stringify(g)),
-    });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "runner.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(g)),
+  });
   for (const n of [1, 0, 1, 0, 1])
     await page.locator(".locations button").nth(n).click();
   const state = await page.evaluate(() =>
@@ -165,4 +163,67 @@ test("Runner scores a destination once per turn through the actual controls", as
   await expect(
     page.getByLabel("Game scores").locator(".score").nth(2),
   ).toContainText("1");
+});
+
+test("piece actions lock controls while settling and reduced motion skips the delay", async ({
+  page,
+}, testInfo) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  const g = createGame("Builder", 42);
+  g.phase = "build";
+  g.budget = 2;
+  await page.goto("/");
+  await page.locator("input[type=file]").setInputFiles({
+    name: "builder.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(g)),
+  });
+  const clockStart = new Date("2026-11-15T12:00:00Z");
+  await page.clock.install({ time: clockStart });
+  await page.clock.pauseAt(new Date(clockStart.getTime() + 1000));
+  await page.locator(".roads button").first().click();
+  await expect(page.getByRole("status")).toHaveText("Pieces settling…");
+  await expect(page.locator(".roads button").first()).toBeDisabled();
+  await page.clock.runFor(240);
+  await page.screenshot({ path: testInfo.outputPath("wall-placement.png") });
+  await page.clock.runFor(900);
+  await expect(page.getByRole("status")).toHaveCount(0);
+  await expect(page.locator(".roads button").first()).toBeEnabled();
+  // A breached road leaves debris briefly, while the Runner is carried across it.
+  const runner = createGame("Runner", 42);
+  runner.turn = "Runner";
+  runner.phase = "run";
+  runner.budget = 8;
+  runner.walls[0] = 1;
+  await page.locator("input[type=file]").setInputFiles({
+    name: "runner.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(runner)),
+  });
+  await page.locator(".locations button").nth(1).click();
+  await expect(page.getByRole("status")).toBeVisible();
+  await page.clock.runFor(320);
+  await page.screenshot({
+    path: testInfo.outputPath("wall-breach-runner.png"),
+  });
+  await page.clock.runFor(850);
+  await expect(page.getByRole("status")).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem("kings-road.game.v1")!).walls[0],
+    ),
+  ).toBe(0);
+  await page.clock.resume();
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.reload();
+  await page.locator("input[type=file]").setInputFiles({
+    name: "builder.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(g)),
+  });
+  await page.locator(".roads button").first().click();
+  await expect(page.locator(".roads button").first()).toBeEnabled();
+  await expect(page.getByRole("status")).toHaveCount(0);
+  expect(errors).toEqual([]);
 });

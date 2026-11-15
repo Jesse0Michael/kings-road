@@ -28,6 +28,7 @@ Deploy the generated `dist/` directory to static hosting. Asset paths are relati
 - Five perimeter locations, central castle, and ten roads.
 - Armored soldier figures with tucked swords and shields, a hooded thief Runner, and low-poly stone walls perpendicular to roads. The castle is engraved into the board.
 - Role-colored polyhedral dice with physical tumbling and a controlled result reveal.
+- Walls and reinforcements drop and settle; Runner and Army groups lift, glide, rock, and settle. Destroyed walls break apart with subtle dust. Actions pause briefly so their effects stay readable.
 - Legal-action controls alongside direct board interaction.
 - Automatic local saves, continue, completed-game chronicle with final scores, and JSON save export/import.
 - Responsive layout, reduced-motion support, and optional fast computer turns.

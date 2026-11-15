@@ -1,3 +1,4 @@
+import { MOTION_MS } from "../scene/motion";
 import { aiAction } from "../game/ai";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -29,6 +30,20 @@ export default function App() {
   const [role, setRole] = useState<Role>("Runner");
   const [selected, setSelected] = useState<number | null>(null);
   const [rolling, setRolling] = useState(false);
+  const [animating, setAnimating] = useState(false);
+  const actionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (actionTimer.current) clearTimeout(actionTimer.current);
+    },
+    [],
+  );
+  function resetMotion() {
+    if (actionTimer.current) clearTimeout(actionTimer.current);
+    busy.current = false;
+    setAnimating(false);
+    setRolling(false);
+  }
   const [fast, setFast] = useState(() => {
     try {
       return localStorage.getItem("kings-road.fast") === "true";
@@ -67,7 +82,7 @@ export default function App() {
     if (a.type === "roll" && !reduced) {
       busy.current = true;
       setRolling(true);
-      window.setTimeout(
+      actionTimer.current = window.setTimeout(
         () => {
           setGame((v) =>
             v && v.id === g.id && v.turn === g.turn && v.phase === g.phase
@@ -79,18 +94,31 @@ export default function App() {
         },
         fast ? 180 : 850,
       );
-    } else setGame((v) => (v ? act(v, a) : v));
+    } else {
+      const next = act(g, a);
+      if (next === g) return;
+      setGame(next);
+      if (!reduced && ["wall", "deploy", "march", "run"].includes(a.type)) {
+        busy.current = true;
+        setAnimating(true);
+        actionTimer.current = setTimeout(() => {
+          busy.current = false;
+          setAnimating(false);
+        }, MOTION_MS + 70);
+      }
+    }
   }
   useEffect(() => {
-    if (!g || screen !== "game" || human || g.winner || rolling) return;
+    if (!g || screen !== "game" || human || g.winner || rolling || animating)
+      return;
     const timer = window.setTimeout(
       () => dispatch(aiAction(g)),
       fast ? 65 : 400,
     );
     return () => clearTimeout(timer);
-  }, [g, screen, rolling, fast]);
+  }, [g, screen, rolling, animating, fast]);
   function node(n: number) {
-    if (!g || !human || rolling) return;
+    if (!g || !human || rolling || animating) return;
     if (g.phase === "deploy") dispatch({ type: "deploy", node: n });
     else if (g.phase === "run") dispatch({ type: "run", node: n });
     else if (g.phase === "move") {
@@ -107,6 +135,7 @@ export default function App() {
     }
   }
   function newGame() {
+    resetMotion();
     setGame(createGame(role));
     setSelected(null);
     setScreen("game");
@@ -129,6 +158,7 @@ export default function App() {
       if (file.size > 1000000) throw Error();
       const parsed = JSON.parse(await file.text());
       if (!validGame(parsed)) throw Error();
+      resetMotion();
       setGame(parsed);
       setScreen("game");
       setError("");
@@ -305,7 +335,8 @@ export default function App() {
               game={g}
               onNode={node}
               onRoad={(road) => {
-                if (human && !rolling) dispatch({ type: "wall", road });
+                if (human && !rolling && !animating)
+                  dispatch({ type: "wall", road });
               }}
               selected={selected}
               rolling={rolling}
@@ -317,6 +348,11 @@ export default function App() {
           </section>
           <aside>
             <section className="turn-panel">
+              {animating && (
+                <p className="eyebrow" role="status">
+                  Pieces settling…
+                </p>
+              )}
               <p className="eyebrow">
                 {g.winner
                   ? "THE GAME IS WON"
@@ -347,7 +383,7 @@ export default function App() {
               {!g.winner && human && g.phase === "roll" && (
                 <button
                   className="primary"
-                  disabled={rolling}
+                  disabled={rolling || animating}
                   onClick={() => dispatch({ type: "roll" })}
                 >
                   {rolling ? "Rolling…" : "Roll the dice"} <span>◇</span>
@@ -358,7 +394,7 @@ export default function App() {
                 (g.phase === "run" || g.phase === "move") && (
                   <button
                     className="secondary"
-                    disabled={rolling}
+                    disabled={rolling || animating}
                     onClick={() => {
                       dispatch({ type: "end" });
                       setSelected(null);
@@ -381,7 +417,7 @@ export default function App() {
                 {Array.from({ length: 10 }, (_, i) => (
                   <button
                     key={i}
-                    disabled={g.walls[i] >= WALL_CAP}
+                    disabled={rolling || animating || g.walls[i] >= WALL_CAP}
                     onClick={() => dispatch({ type: "wall", road: i })}
                   >
                     {labels[i < 5 ? i : i - 5]} —{" "}
@@ -403,7 +439,7 @@ export default function App() {
                   <div className="action-grid">
                     {labels.map((label, n) => {
                       const count = g.units.filter((u) => u.node === n).length;
-                      const disabled =
+                      const unavailable =
                         g.phase === "deploy"
                           ? n === 5 ||
                             n === g.runner ||
@@ -414,7 +450,7 @@ export default function App() {
                       return (
                         <button
                           key={n}
-                          disabled={disabled}
+                          disabled={rolling || animating || unavailable}
                           className={selected === n ? "selected" : ""}
                           onClick={() => node(n)}
                         >

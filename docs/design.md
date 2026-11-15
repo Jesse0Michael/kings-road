@@ -8,7 +8,7 @@ A static, browser-only game: one human chooses any role and plays against two co
 
 The selected direction is the carved tabletop concept: warm wood, a fixed shallow overhead perspective, muted crimson soldiers, warm stone Builder walls with gold ownership accents, and a unique teal hooded thief with a dagger and belt pouch for the Runner. The Army wears faceted steel helmets and carries crimson shields with swords tucked close. The castle is an engraved emblem inset into the board rather than a separate playing piece. Roads are dark grooves connecting the six nodes. Walls cross these roads perpendicularly. Dice and interface accents follow role colors.
 
-The board, castle engraving, figures, dice, and wood grain are generated in code. Wood uses separate color and bump textures with plank seams, knots, pores and worn varnish; the table has its own darker surface. Fonts are bundled locally. Numeric labels retain readable counts when forces or wall stacks grow large. Up to five soldiers and seven walls per location/road are modeled, with exact counts in labels and controls. The Runner animates between nodes; soldiers currently resolve their moves immediately.
+The board, castle engraving, figures, dice, and wood grain are generated in code. Wood uses separate color and bump textures with plank seams, knots, pores and worn varnish; the table has its own darker surface. Fonts are bundled locally. Numeric labels retain readable counts when forces or wall stacks grow large. Up to five soldiers and seven walls per location/road are modeled, with exact counts in labels and controls. The Runner and soldiers retain stable visual identities while moving between nodes. They lift, glide with a small rotation, and settle; new walls and soldiers drop onto the board with a damped bounce.
 
 ## Rules interpretations
 
@@ -55,3 +55,9 @@ Fast computer turns is now a browser-persisted preference in Settings, rather th
 ## Per-turn exploration and consolidated scores
 
 The scoreboard is a compact three-role strip above the board on both desktop and mobile. Runner exploration now tracks unique nodes within one Runner turn (one turn per round). The turn starts with its current node already visited. Every other node may score once, and visiting all six does not reset eligibility. Save/resume retains the current turn’s visited set. Existing accumulated scores are retained; earlier exploration sets are replaced when the next Runner turn begins.
+
+## Piece motion
+
+The scene reconciles committed game states into persistent visual pieces. Placement and movement take roughly 950 ms, with gentle tilt and damped settling. Stationary soldiers keep their slots when a neighbor leaves. Army groups travel together; scoring soldiers move into the castle before fading, sacrifices move to the breached road, and Runner victims are removed at their location. Destroyed walls persist as two falling chunks plus a small fading dust puff, then are disposed. These are controlled presentation animations, rather than dynamic rigid bodies that can move gameplay pieces out of place.
+
+Player controls and AI actions wait until the settling interval completes. Fast computer turns still shortens pauses and dice rolls, while retaining readable piece motion. Reduced-motion users skip piece animation and its delay. Existing saves restore pieces at rest rather than replaying old placements; only committed game state is saved. New games/imports cancel outstanding presentation timers.
