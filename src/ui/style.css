@@ -778,3 +778,39 @@ aside {
 .roll-button:disabled {
   opacity: 0.55;
 }
+
+/* Roll belongs to the tabletop; its color follows the human's role. */
+.board-roll {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: 54px;
+  transform: translateX(-50%);
+  min-width: 112px;
+  min-height: 48px;
+  padding: 10px 26px;
+  background: var(--role);
+  border-color: color-mix(in srgb, var(--role), #fbe4b3 45%);
+  color: var(--role-ink);
+  box-shadow:
+    0 5px 20px #0007,
+    inset 0 1px 0 #ffffff35;
+  font-size: 18px;
+  letter-spacing: 1px;
+}
+.board-roll:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--role), #fff 12%);
+  color: var(--role-ink);
+}
+.board-roll:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+@media (max-width: 750px) {
+  .board-roll {
+    bottom: 43px;
+    min-height: 46px;
+    min-width: 100px;
+    font-size: 17px;
+  }
+}

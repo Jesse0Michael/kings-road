@@ -1,41 +1,76 @@
 import { expect, it } from "vitest";
 import { act, createGame } from "../game/engine";
-import { reconcilePieces, sampleMotion, wallLocation } from "./motion";
-it("restores existing pieces at rest and drops only newly placed pieces", () => {
+import {
+  reconcilePieces,
+  samplePiece,
+  MOTION_MS,
+  wallLocation,
+  endTime,
+} from "./motion";
+it("drops new placements independently while restored pieces remain at rest", () => {
   const g = createGame("Builder");
   g.phase = "build";
-  g.budget = 2;
+  g.budget = 3;
   const old = reconcilePieces([], g);
-  expect(old.every((p) => p.motion === "idle")).toBe(true);
-  const next = act(g, { type: "wall", road: 0 });
-  const pieces = reconcilePieces(old, next, g);
-  const wall = pieces.find((p) => p.kind === "wall")!;
-  expect(wall.motion).toBe("place");
-  expect(sampleMotion(wall, 0).position[1]).toBeGreaterThan(wall.at[1]);
-  expect(sampleMotion(wall, 0.7).rotation[0]).not.toBe(0);
-  expect(sampleMotion(wall, 1).position).toEqual(wall.at);
+  expect(old.every((p) => !p.steps.length)).toBe(true);
+  const a = act(g, { type: "wall", road: 0 }),
+    b = act(a, { type: "wall", road: 1 });
+  const first = reconcilePieces(old, a, g, 100),
+    both = reconcilePieces(first, b, a, 250);
+  const w1 = both.find((p) => p.id === "wall-0-0")!,
+    w2 = both.find((p) => p.id === "wall-1-0")!;
+  expect(w1.steps[0].start).toBe(100);
+  expect(w2.steps[0].start).toBe(250);
+  expect(samplePiece(w1, 300).position[1]).toBeGreaterThan(w1.at[1]);
+  expect(samplePiece(w2, 300).position[1]).toBeGreaterThan(w2.at[1]);
 });
-it("keeps group identities and moves from their original slots with lift and rocking", () => {
+it("queues rapid Runner paths without teleporting and delays capture to actual arrival", () => {
+  const g = createGame("Runner");
+  g.turn = "Runner";
+  g.phase = "run";
+  g.budget = 8;
+  g.units = [{ id: 1, node: 2 }];
+  const old = reconcilePieces([], g),
+    a = act(g, { type: "run", node: 1 }),
+    b = act(a, { type: "run", node: 2 });
+  const ps = reconcilePieces(reconcilePieces(old, a, g, 100), b, a, 220),
+    r = ps.find((p) => p.id === "runner")!,
+    victim = ps.find((p) => p.id === "army-1")!;
+  expect(r.steps).toHaveLength(2);
+  expect(r.steps[1].start).toBe(100 + MOTION_MS);
+  expect(samplePiece(r, 250).position[0]).not.toBe(r.at[0]);
+  expect(samplePiece(victim, 100 + MOTION_MS).opacity).toBe(1);
+  expect(victim.steps.at(-1)!.start).toBeCloseTo(100 + MOTION_MS * 1.84);
+  expect(samplePiece(victim, endTime(victim)).opacity).toBe(0);
+});
+it("keeps stable identities in group movement and reserves stationary slots", () => {
   const g = createGame("Army");
   g.turn = "Army";
   g.phase = "move";
   g.units = [
     { id: 1, node: 0 },
     { id: 2, node: 0 },
+    { id: 3, node: 1 },
   ];
   const old = reconcilePieces([], g),
-    next = act(g, { type: "march", unit: 1, node: 1 });
-  const pieces = reconcilePieces(old, next, g);
+    ps = reconcilePieces(
+      old,
+      act(g, { type: "march", unit: 1, node: 1 }),
+      g,
+      100,
+    );
   for (const id of ["army-1", "army-2"]) {
-    const p = pieces.find((p) => p.id === id)!;
-    expect(p.motion).toBe("move");
-    expect(p.from).toEqual(old.find((p) => p.id === id)!.at);
-    expect(sampleMotion(p, 0.5).position[1]).toBeGreaterThan(p.at[1]);
-    expect(sampleMotion(p, 0.1).rotation[0]).not.toBe(0);
-    expect(sampleMotion(p, 1).position).toEqual(p.at);
+    const p = ps.find((p) => p.id === id)!;
+    expect(p.steps[0].from).toEqual(old.find((v) => v.id === id)!.at);
+    expect(samplePiece(p, 100 + MOTION_MS * 0.5).position[1]).toBeGreaterThan(
+      p.at[1],
+    );
   }
+  expect(ps.find((p) => p.id === "army-3")!.at).toEqual(
+    old.find((p) => p.id === "army-3")!.at,
+  );
 });
-it("retains destroyed walls and casualties until presentation completes", () => {
+it("distinguishes wall sacrifices from scoring survivors in the same group", () => {
   const g = createGame("Army");
   g.turn = "Army";
   g.phase = "move";
@@ -44,55 +79,41 @@ it("retains destroyed walls and casualties until presentation completes", () => 
     { id: 2, node: 0 },
   ];
   g.walls[5] = 1;
-  const pieces = reconcilePieces(
+  const ps = reconcilePieces(
     reconcilePieces([], g),
     act(g, { type: "march", unit: 1, node: 5 }),
     g,
+    100,
   );
-  expect(pieces.find((p) => p.id === "wall-5-0")?.gone).toBe(true);
-  expect(pieces.find((p) => p.id === "army-1")?.at).toEqual(wallLocation(5, 2));
-  expect(pieces.find((p) => p.id === "army-2")?.at).toEqual([0, 0.19, 0]);
+  expect(ps.find((p) => p.id === "army-1")!.at).toEqual(wallLocation(5, 0));
+  expect(ps.find((p) => p.id === "army-2")!.at).toEqual([0, 0.175, 0]);
   expect(
-    sampleMotion(
-      pieces.find((p) => p.id === "army-1")!,
-      1,
-    ).opacity,
+    samplePiece(
+      ps.find((p) => p.kind === "wall")!,
+      100,
+    ).breaking,
   ).toBe(0);
 });
-it("does not shuffle surviving soldiers when their neighbor is removed", () => {
-  const g = createGame("Runner");
-  g.turn = "Runner";
-  g.phase = "run";
-  g.budget = 8;
-  g.units = [
-    { id: 1, node: 1 },
-    { id: 2, node: 1 },
-  ];
-  const old = reconcilePieces([], g);
-  const next = reconcilePieces(old, act(g, { type: "run", node: 1 }), g);
-  expect(next.find((p) => p.id === "army-2")!.at).toEqual(
-    old.find((p) => p.id === "army-2")!.at,
-  );
-  expect(next.find((p) => p.id === "runner")!.motion).toBe("move");
-});
-it("does not animate an old game into a newly imported game", () => {
-  const g = createGame("Army");
-  g.units = [{ id: 1, node: 0 }];
-  const fresh = createGame("Runner");
-  const pieces = reconcilePieces(reconcilePieces([], g), fresh, g);
-  expect(pieces).toHaveLength(1);
-  expect(pieces[0].motion).toBe("idle");
-});
-it("Runner kills remove soldiers at their node, even when a wall on the approach is destroyed", () => {
+it("a rebuilt wall can coexist with the old wall debris without sharing its identity", () => {
   const g = createGame("Runner");
   g.turn = "Runner";
   g.phase = "run";
   g.budget = 8;
   g.walls[0] = 1;
-  g.units = [{ id: 1, node: 1 }];
-  const old = reconcilePieces([], g);
-  const pieces = reconcilePieces(old, act(g, { type: "run", node: 1 }), g);
-  expect(pieces.find((p) => p.id === "army-1")?.at).toEqual(
-    old.find((p) => p.id === "army-1")?.at,
-  );
+  const a = act(g, { type: "run", node: 1 }),
+    old = reconcilePieces(reconcilePieces([], g), a, g, 100);
+  const b = structuredClone(a);
+  b.walls[0] = 1;
+  const ps = reconcilePieces(old, b, a, 200);
+  const walls = ps.filter((p) => p.id === "wall-0-0");
+  expect(walls).toHaveLength(2);
+  expect(walls[0].uid).not.toBe(walls[1].uid);
+});
+it("imports restore without replaying movement from the old game", () => {
+  const g = createGame("Army"),
+    fresh = createGame("Runner");
+  g.units = [{ id: 1, node: 0 }];
+  const ps = reconcilePieces(reconcilePieces([], g), fresh, g, 500);
+  expect(ps).toHaveLength(1);
+  expect(ps[0].steps).toHaveLength(0);
 });

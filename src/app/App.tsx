@@ -1,4 +1,7 @@
-import { MOTION_MS } from "../scene/motion";
+import type { Transition } from "../scene/motion";
+import { ROLL_MS } from "../scene/Dice";
+import type { DiceRoll } from "../scene/Dice";
+import { nodeSelectable } from "../scene/boardLayout";
 import { aiAction } from "../game/ai";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -6,6 +9,7 @@ import {
   WALL_CAP,
   unitCount,
   act,
+  rollDice,
   createGame,
   Game,
   neighbors,
@@ -30,7 +34,21 @@ export default function App() {
   const [role, setRole] = useState<Role>("Runner");
   const [selected, setSelected] = useState<number | null>(null);
   const [rolling, setRolling] = useState(false);
-  const [animating, setAnimating] = useState(false);
+  const [transitions, setTransitions] = useState<Transition[]>([]);
+  const sequence = useRef(0),
+    currentGame = useRef(game);
+  const [diceRoll, setDiceRoll] = useState<DiceRoll | null>(() =>
+    game?.dice.length
+      ? {
+          id: 0,
+          role: game.turn,
+          values: game.dice,
+          started: 0,
+          duration: 0,
+          seed: game.seed,
+        }
+      : null,
+  );
   const actionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
@@ -41,7 +59,8 @@ export default function App() {
   function resetMotion() {
     if (actionTimer.current) clearTimeout(actionTimer.current);
     busy.current = false;
-    setAnimating(false);
+    setTransitions([]);
+    setDiceRoll(null);
     setRolling(false);
   }
   const [fast, setFast] = useState(() => {
@@ -77,48 +96,61 @@ export default function App() {
       }
     }
   }, [g]);
-  function dispatch(a: Parameters<typeof act>[1]) {
-    if (!g || busy.current) return;
-    if (a.type === "roll" && !reduced) {
-      busy.current = true;
-      setRolling(true);
-      actionTimer.current = window.setTimeout(
-        () => {
-          setGame((v) =>
-            v && v.id === g.id && v.turn === g.turn && v.phase === g.phase
-              ? act(v, a)
-              : v,
-          );
-          setRolling(false);
-          busy.current = false;
-        },
-        fast ? 180 : 850,
-      );
-    } else {
-      const next = act(g, a);
-      if (next === g) return;
-      setGame(next);
-      if (!reduced && ["wall", "deploy", "march", "run"].includes(a.type)) {
-        busy.current = true;
-        setAnimating(true);
-        actionTimer.current = setTimeout(() => {
-          busy.current = false;
-          setAnimating(false);
-        }, MOTION_MS + 70);
-      }
+  function commit(next: Game) {
+    const before = currentGame.current;
+    if (before && next !== before) {
+      const transition = {
+        id: ++sequence.current,
+        before,
+        after: next,
+        at: performance.now(),
+      };
+      setTransitions((list) => [...list, transition].slice(-80));
     }
+    currentGame.current = next;
+    setGame(next);
+  }
+  function dispatch(a: Parameters<typeof act>[1]) {
+    const active = currentGame.current;
+    if (!active || busy.current) return;
+    const next = act(active, a);
+    if (next === active) return;
+    if (a.type === "roll") {
+      const duration = reduced
+        ? 0
+        : fast && active.turn !== active.human
+          ? 1200
+          : ROLL_MS;
+      // Capture values before committing, so the fixed-face dice land before gameplay uses them.
+      setDiceRoll({
+        id: ++sequence.current,
+        role: active.turn,
+        values: rollDice(active).dice,
+        started: performance.now(),
+        duration,
+        seed: next.seed,
+      });
+      if (duration) {
+        busy.current = true;
+        setRolling(true);
+        actionTimer.current = setTimeout(() => {
+          if (currentGame.current === active) commit(next);
+          busy.current = false;
+          setRolling(false);
+        }, duration + 80);
+      } else commit(next);
+    } else commit(next);
   }
   useEffect(() => {
-    if (!g || screen !== "game" || human || g.winner || rolling || animating)
-      return;
+    if (!g || screen !== "game" || human || g.winner || rolling) return;
     const timer = window.setTimeout(
       () => dispatch(aiAction(g)),
-      fast ? 65 : 400,
+      fast ? 100 : 210,
     );
     return () => clearTimeout(timer);
-  }, [g, screen, rolling, animating, fast]);
+  }, [g, screen, rolling, fast]);
   function node(n: number) {
-    if (!g || !human || rolling || animating) return;
+    if (!g || !human || rolling) return;
     if (g.phase === "deploy") dispatch({ type: "deploy", node: n });
     else if (g.phase === "run") dispatch({ type: "run", node: n });
     else if (g.phase === "move") {
@@ -136,7 +168,9 @@ export default function App() {
   }
   function newGame() {
     resetMotion();
-    setGame(createGame(role));
+    const fresh = createGame(role);
+    currentGame.current = fresh;
+    setGame(fresh);
     setSelected(null);
     setScreen("game");
     setError("");
@@ -159,7 +193,21 @@ export default function App() {
       const parsed = JSON.parse(await file.text());
       if (!validGame(parsed)) throw Error();
       resetMotion();
+      currentGame.current = parsed;
       setGame(parsed);
+      setSelected(null);
+      setDiceRoll(
+        parsed.dice.length
+          ? {
+              id: ++sequence.current,
+              role: parsed.turn,
+              values: parsed.dice,
+              started: 0,
+              duration: 0,
+              seed: parsed.seed,
+            }
+          : null,
+      );
       setScreen("game");
       setError("");
     } catch {
@@ -289,7 +337,7 @@ export default function App() {
               onNode={() => {}}
               onRoad={() => {}}
               selected={null}
-              rolling={false}
+              diceRoll={null}
             />
             <div className="hero-caption">
               <span>THE CARVED TABLE COLLECTION</span>
@@ -335,12 +383,28 @@ export default function App() {
               game={g}
               onNode={node}
               onRoad={(road) => {
-                if (human && !rolling && !animating)
-                  dispatch({ type: "wall", road });
+                if (human && !rolling) dispatch({ type: "wall", road });
               }}
               selected={selected}
-              rolling={rolling}
+              diceRoll={diceRoll}
+              transitions={transitions}
             />
+            {!g.winner && human && g.phase === "roll" && (
+              <button
+                className="roll-button board-roll"
+                style={
+                  {
+                    "--role": colors[g.human],
+                    "--role-ink": g.human === "Builder" ? "#302719" : "#fff2d8",
+                  } as React.CSSProperties
+                }
+                disabled={rolling}
+                aria-busy={rolling}
+                onClick={() => dispatch({ type: "roll" })}
+              >
+                Roll
+              </button>
+            )}
             <div className="table-bottom">
               <span>STONE WALLS · CRIMSON SOLDIERS · TEAL TRAVELER</span>
               <button onClick={exportGame}>Export save ↗</button>
@@ -349,22 +413,7 @@ export default function App() {
           <aside>
             <section className="turn-panel">
               <div className="turn-summary">
-                {!g.winner && human && g.phase === "roll" && (
-                  <button
-                    className="roll-button"
-                    disabled={rolling || animating}
-                    aria-busy={rolling}
-                    onClick={() => dispatch({ type: "roll" })}
-                  >
-                    Roll
-                  </button>
-                )}
                 <div className="turn-copy">
-                  {animating && (
-                    <p className="eyebrow" role="status">
-                      Pieces settling…
-                    </p>
-                  )}
                   <p className="eyebrow">
                     {g.winner
                       ? "THE GAME IS WON"
@@ -399,7 +448,7 @@ export default function App() {
                 (g.phase === "run" || g.phase === "move") && (
                   <button
                     className="secondary"
-                    disabled={rolling || animating}
+                    disabled={rolling}
                     onClick={() => {
                       dispatch({ type: "end" });
                       setSelected(null);
@@ -422,7 +471,7 @@ export default function App() {
                 {Array.from({ length: 10 }, (_, i) => (
                   <button
                     key={i}
-                    disabled={rolling || animating || g.walls[i] >= WALL_CAP}
+                    disabled={rolling || g.walls[i] >= WALL_CAP}
                     onClick={() => dispatch({ type: "wall", road: i })}
                   >
                     {labels[i < 5 ? i : i - 5]} —{" "}
@@ -444,18 +493,11 @@ export default function App() {
                   <div className="action-grid">
                     {labels.map((label, n) => {
                       const count = g.units.filter((u) => u.node === n).length;
-                      const unavailable =
-                        g.phase === "deploy"
-                          ? n === 5 ||
-                            n === g.runner ||
-                            unitCount(g, n) >= NODE_CAP
-                          : g.phase === "run"
-                            ? runCost(g, n) > g.budget
-                            : false;
+                      const unavailable = !nodeSelectable(g, n, selected);
                       return (
                         <button
                           key={n}
-                          disabled={rolling || animating || unavailable}
+                          disabled={rolling || unavailable}
                           className={selected === n ? "selected" : ""}
                           onClick={() => node(n)}
                         >
@@ -514,18 +556,18 @@ export default function App() {
           <h2>Exploration</h2>
           <p>
             The Runner earns one point for each unique location entered during
-            its turn. The starting location is already visited. Revisiting any
-            location in the same turn earns no extra points, even after visiting
-            all six. The visited set resets at the start of the next Runner
-            turn; total scores carry over between rounds.
+            its turn. The starting location earns no point at the start, but
+            returning to it can score once. Revisiting any location in the same
+            turn earns no extra points, even after visiting all six. The visited
+            set resets at the start of the next Runner turn; total scores carry
+            over between rounds.
           </p>
           <h2>At the table</h2>
           <p>
             Click roads to build walls. For the Army, select a location with an
-            unmoved soldier and then an adjacent destination; repeat for each
-            soldier. Click locations to deploy or move the Runner. The labeled
-            controls beside the board offer the same actions. Location VI is the
-            central castle, marked ♜.
+            ready group and then an adjacent destination. Click locations to
+            deploy or move the Runner. The labeled controls beside the board
+            offer the same actions. Location VI is the central castle, marked ♜.
           </p>
           <h2>Your chronicle</h2>
           <p>

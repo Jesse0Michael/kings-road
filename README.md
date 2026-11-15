@@ -1,92 +1,98 @@
 # King’s Road
 
-A browser-only adaptation of Khyriel’s asymmetric tavern game. Play **Builder**, **Army**, or **Runner** against two computer opponents on a carved 3D wooden tabletop.
+A browser-only adaptation of Khyriel’s asymmetric tavern game. Play **Builder**, **Army**, or **Runner** against two computer opponents on a carved wooden tabletop.
+
+**[Play King’s Road → https://jesse0michael.github.io/kings-road/](https://jesse0michael.github.io/kings-road/)**
+
+No account, backend, or installation is needed. Games save automatically in your browser.
+
+![The carved board, stone walls, hooded Runner, Army figures, and numbered dice](docs/screenshots/tabletop.png)
 
 ## Run locally
 
-Install Node.js **22.12 or newer** (the `.nvmrc` selects Node 22), then from this repository:
+Install Node.js **22.12 or newer** (the `.nvmrc` selects Node 22), then:
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Open the local address printed by Vite. No environment variables, accounts, API keys, or backend services are required. Use a current browser with WebGL and hardware acceleration enabled for the 3D tabletop.
-
-For a production build:
+Open the address printed by Vite. No environment variables, API keys, or backend services are required. Use a current browser with WebGL and hardware acceleration for the 3D tabletop.
 
 ```sh
-npm run build
-npm run preview
+npm run build           # Type check and create dist/
+npm run preview         # Preview the production build
 ```
 
-Deploy the generated `dist/` directory to static hosting. Asset paths are relative, supporting deployments in a subdirectory such as GitHub Pages. Serve it over HTTP; do not open `index.html` directly from disk.
+The `dist/` directory can be hosted by any static web server. Relative asset paths support subdirectories such as GitHub Pages. Serve it over HTTP; opening `index.html` directly from disk is unsupported.
 
-## What’s in the MVP
+## At the table
 
-- All three playable roles, each with two computer rivals.
-- Five perimeter locations, central castle, and ten roads.
-- Armored soldier figures with tucked swords and shields, a hooded thief Runner, and low-poly stone walls perpendicular to roads. The castle is engraved into the board.
-- Role-colored polyhedral dice with physical tumbling and a controlled result reveal.
-- Walls and reinforcements drop and settle; Runner and Army groups lift, glide, rock, and settle. Destroyed walls break apart with subtle dust. Actions pause briefly so their effects stay readable.
-- Legal-action controls alongside direct board interaction.
-- Automatic local saves, continue, completed-game chronicle with final scores, and JSON save export/import.
-- Responsive layout, reduced-motion support, and optional fast computer turns.
-- All game logic, models, procedural textures, fonts, and physics served with the app. No runtime CDN dependency.
+Choose a role; the other two become computer rivals. Turns run **Builder → Army → Runner**. The first to reach **15 points** wins immediately.
 
-## Playing
+| Role    | Dice | Your turn                                                                                                                                                            | Scoring                                                                                                         |
+| ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Builder | 3d4  | Spend each pair of rolled points on a wall. Tap a highlighted road or an existing wall; each road holds five.                                                        | One point per soldier sacrificed against a wall.                                                                |
+| Army    | 2d6  | Move ready soldiers as a group to an adjacent location, or hold them. Then roll and deploy, up to five soldiers per perimeter node, excluding the Runner’s location. | One point per soldier reaching the castle.                                                                      |
+| Runner  | 1d8  | Spend movement on connected roads, removing walls and one soldier at each occupied destination. End movement whenever you like.                                      | One point per unique location entered that turn. Starting there gives no point; returning there can score once. |
 
-Choose a role on the home screen. Builder acts first, followed by Army and Runner. The first role to score 15 wins immediately.
+Army soldiers that cannot fit at their destination stay ready at the origin and can try another road. A blocked crossing sacrifices one soldier per wall; surviving soldiers cross if there is room. An open road costs the Runner one movement point; a walled road costs two per wall, including the crossing. Repeated Runner visits never score again in the same turn, even after all six locations have been visited.
 
-- **Builder:** Roll, then click roads or road buttons to spend all available walls.
-- **Army:** Select a location containing an unmoved soldier, then an adjacent destination. Ready soldiers move as a group; excess stay ready at the origin if the destination is full. You may hold all remaining soldiers. Then roll and deploy reinforcements by clicking perimeter locations. You cannot deploy on the Runner.
-- **Runner:** Roll, then choose connected destinations within your movement budget. You may end movement early.
+The **Roll** button appears on the table in your role’s color when you can roll. Army destinations and buildable roads light up when selectable. Roads have generous tap regions; existing walls are also clickable. The labeled controls beside the board provide the same actions.
 
-The scoreboard and action panel explain the current phase. Location I is the top node; II–V run clockwise. The castle is marked ♜. Large groups and wall stacks show numeric counts rather than drawing every piece.
+Pieces drop, lift, glide, and settle without locking your next action. Computer placements overlap with a short stagger. Runner captures wait for the traveler to arrive. **Settings → Fast computer turns** shortens computer pauses and rolls; the app also respects your system’s reduced-motion preference.
 
-Saves are specific to this browser, origin, and device. Export a backup before clearing storage, changing hosts/ports, or replacing a game. Import that JSON file from the home screen to resume elsewhere. The chronicle retains the most recent 100 completed games.
+## Saves and history
 
-Read the [original rules and author clarifications](docs/rules.md) and [implementation decisions](docs/design.md).
+- Continue the current game from the home screen.
+- The Chronicle keeps the most recent 100 completed games and their final scores.
+- **Export save** downloads the active game as JSON; **Import a saved game** resumes it on another browser or device.
 
-## Technology and organization
+Saves belong to this browser and web address. Clearing browser storage, changing hosts/ports, or switching devices will not carry them over automatically. Export before replacing a game or clearing storage. Export/import does not transfer the completed-game Chronicle.
 
-React, TypeScript, Vite, Three.js / React Three Fiber, and Rapier. The rules engine is independent of React and rendering. Humans and computer opponents submit the same validated actions. Seeded dice results are determined by the engine; physics provides presentation and settles to the authoritative result, so animations cannot alter a saved game’s rules outcome.
+Read the [original rules and current clarifications](docs/rules.md) and [implementation decisions](docs/design.md).
+
+## Graphics and technology
+
+React, TypeScript, Vite, and Three.js through React Three Fiber. A separate rules engine validates the same actions for humans and computers.
+
+The scene uses low-poly soldiers with close-held swords and shields, a hooded traveler, and stone walls crossing the roads. Roman numerals, roads, and the central castle are engraved into one continuous wooden board. Generated WebP wood textures, fonts, and models are bundled locally; the game makes no runtime CDN or image-generation requests.
+
+Dice have permanent face numbering. Their tumbles are recorded from real Rapier simulations during development, with a verified landing for every d4, d6, and d8 result. The browser replays the appropriate trajectory for the engine’s seeded roll. No number changes or forced orientation correction happen at the end, and no physics engine needs to download at runtime. Read a d4 at its upper tip; read d6 and d8 on their upward face.
 
 ```text
 src/
   app/App.tsx            # Screens, turn orchestration, human controls
-  game/engine.ts         # State, actions, movement, scoring, seeded dice
-  game/ai.ts             # Public-information computer strategies
-  persistence/           # Versioned save validation and result history
-  scene/                 # Board, pieces, procedural surfaces, dice and physics
+  game/                  # Rules engine, seeded dice, computer strategies
+  persistence/           # Validated local saves and game history
+  scene/                 # Board, models, hit testing, piece motion, dice
   ui/style.css           # Responsive interface styling
   main.tsx               # Entry point and locally bundled fonts
-
-docs/                    # Rules and design decisions
+public/assets/textures/  # Bundled table and board wood textures
+scripts/generate-dice.mjs # Development-only physics trajectory generator
+docs/                    # Original rules and current design decisions
 tests/browser/           # Playwright interaction tests
 ```
 
 ## Validation
 
 ```sh
-npm test                 # Rules, complete computer games, save/history tests
-npm run build            # Type check and production bundle
+npm test                         # Rules, AI games, persistence, motion, dice, hit targets
+npm run build                    # Type check and production bundle
 npx playwright install chromium  # Once, if no system Chromium is available
-npm run test:browser      # Starts Vite automatically if needed
+npm run test:browser              # Starts Vite automatically if needed
 ```
 
-Browser tests cover the three roles’ controls, autosave/reload, mobile layout, import/export, immediate victory, and history. Tests use installed Chromium when available, otherwise Playwright’s bundled Chromium. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to override its location.
+Browser tests cover all three roles, saves/reload, import/export, immediate victory, history, Runner scoring, overlapping placements, road taps, Army targets, and mobile layout. Tests use system Chromium when available, otherwise Playwright’s bundled Chromium. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to override its location.
 
-## MVP boundaries
-
-The original rules are intentionally not balanced. Computer rivals use straightforward heuristics, not deep search. The camera is fixed for readability. The board and pieces are procedural stylized models, rather than bespoke sculpted assets. Army movement resolves one selected soldier at a time; unlimited unit and wall counts are represented compactly. Sound, online multiplayer, cloud synchronization, installable offline/PWA caching, and a difficulty selector are outside this MVP. Serving all assets locally does not guarantee the app can reload without a connection to its host.
+To regenerate the committed dice recordings, use Node **22.18 or newer**, run `npm run dice:generate`, then `npm test`. Ordinary development and deployment use the committed recordings and do not need this step.
 
 ## GitHub Pages deployment
 
-The workflow in `.github/workflows/pages.yml` tests and builds on pushes to `main`, then deploys `dist/` using GitHub’s official Pages artifact/deployment actions. It can also be run manually from the Actions tab. No personal token or hosting secret is needed.
+Pushing to `main` runs [Test and deploy to GitHub Pages](.github/workflows/pages.yml): install dependencies, run unit tests, build, and publish `dist/` with GitHub’s official Pages actions. The workflow also supports a manual run from the Actions tab.
 
-One-time repository setup: open **Settings → Pages → Build and deployment → Source**, choose **GitHub Actions**, then run **Test and deploy to GitHub Pages** from Actions (or push another commit). Repository Actions must be enabled; any `github-pages` environment approval policy also applies. Pages availability for private repositories depends on your GitHub plan.
+The published site is **https://jesse0michael.github.io/kings-road/**. The deployment job links its result. Repository **Settings → Pages → Source** should remain set to **GitHub Actions**. No personal token or hosting secret is needed. Publishing a Codex cloud environment is separate from pushing commits and deploying Pages.
 
-Expected project URL after a successful deployment: `https://jesse0michael.github.io/kings-road/`. The deployment job reports the actual URL. GitHub Pages publishes the app to the web; cloud environment publication is separate.
+## Current limits
 
-Current playtest caps: five walls per road, five soldiers per perimeter node. Army groups move together, leaving excess soldiers ready at their origin. Capacity can discard reinforcements when no valid deployment space remains. See `docs/design.md` for full sequencing details.
+This is a playtestable prototype of intentionally asymmetric, unbalanced rules. Computer rivals use simple public-information strategies. There is no multiplayer, sound, cloud synchronization, difficulty selector, or installable offline/PWA cache. All game logic runs in the browser, but reloading still requires access to the host unless the browser has retained the necessary assets. The camera is fixed, and figures are stylized procedural models.

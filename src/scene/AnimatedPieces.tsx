@@ -3,7 +3,13 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { Game } from "../game/engine";
 import { Runner, Soldier, StoneWall } from "./Pieces";
-import { MOTION_MS, Piece, reconcilePieces, sampleMotion } from "./motion";
+import {
+  Piece,
+  Transition,
+  reconcilePieces,
+  samplePiece,
+  endTime,
+} from "./motion";
 
 function BrokenWall({ progress }: { progress: React.RefObject<number> }) {
   const ref = useRef<THREE.Group>(null);
@@ -100,35 +106,21 @@ function AnimatedPiece({
   reduced: boolean;
 }) {
   const ref = useRef<THREE.Group>(null),
-    started = useRef(performance.now()),
-    done = useRef(false),
     progress = useRef(0),
-    materials = useRef<THREE.Material[]>([]);
+    done = useRef(false);
+  const intact = useRef<THREE.Group>(null),
+    debris = useRef<THREE.Group>(null);
   useLayoutEffect(() => {
-    started.current = performance.now();
     done.current = false;
-    materials.current = [];
-    if (piece.gone)
-      ref.current?.traverse((o) => {
-        if (o instanceof THREE.Mesh) {
-          const ms = Array.isArray(o.material) ? o.material : [o.material];
-          for (const m of ms) {
-            m.transparent = true;
-            m.depthWrite = false;
-            materials.current.push(m);
-          }
-        }
-      });
-  }, [piece.revision, piece.gone]);
+  }, [piece.steps]);
   useFrame(() => {
     const group = ref.current;
     if (!group) return;
-    const t = reduced
-      ? 1
-      : Math.min(1, (performance.now() - started.current) / MOTION_MS);
-    progress.current = t;
-    const broken = piece.kind === "wall" && piece.gone;
-    const pose = sampleMotion(piece, t);
+    const pose = samplePiece(piece, reduced ? Infinity : performance.now());
+    progress.current = pose.breaking;
+    const broken = piece.kind === "wall" && !!piece.gone && pose.breaking > 0;
+    if (intact.current) intact.current.visible = !broken;
+    if (debris.current) debris.current.visible = broken;
     group.position.fromArray(broken ? piece.at : pose.position);
     group.rotation.set(
       ...(broken
@@ -137,36 +129,41 @@ function AnimatedPiece({
     );
     group.scale.setScalar(broken ? 1 : pose.scale);
     if (piece.gone)
-      materials.current.forEach(
-        (m) =>
-          (m.opacity = broken
-            ? 1 - Math.max(0, (t - 0.55) / 0.45)
-            : pose.opacity),
-      );
-    if (t === 1 && !done.current && piece.motion !== "idle") {
+      group.traverse((o) => {
+        if (o instanceof THREE.Mesh) {
+          const ms = Array.isArray(o.material) ? o.material : [o.material];
+          ms.forEach((m) => {
+            m.transparent = true;
+            m.depthWrite = false;
+            m.opacity = pose.opacity;
+          });
+        }
+      });
+    if (pose.done && !done.current && piece.steps.length) {
       done.current = true;
       onDone(piece);
     }
   });
+  const initial = samplePiece(piece, performance.now());
   return (
-    <group
-      ref={ref}
-      position={
-        piece.motion === "place"
-          ? [piece.at[0], piece.at[1] + 0.72, piece.at[2]]
-          : piece.from
-      }
-      rotation={[0, piece.yaw, 0]}
-    >
+    <group ref={ref} position={initial.position} rotation={initial.rotation}>
       {piece.kind === "wall" ? (
-        piece.gone ? (
-          <>
-            <BrokenWall progress={progress} />
-            <Dust progress={progress} />
-          </>
-        ) : (
-          <StoneWall position={[0, 0, 0]} onClick={() => onRoad(piece.node)} />
-        )
+        <>
+          <group ref={intact}>
+            <StoneWall
+              position={[0, 0, 0]}
+              onClick={() => {
+                if (!piece.gone) onRoad(piece.node);
+              }}
+            />
+          </group>
+          {piece.gone && (
+            <group ref={debris} visible={false}>
+              <BrokenWall progress={progress} />
+              <Dust progress={progress} />
+            </group>
+          )}
+        </>
       ) : piece.kind === "soldier" ? (
         <Soldier
           position={[0, 0, 0]}
@@ -182,53 +179,63 @@ function AnimatedPiece({
 }
 export function AnimatedPieces({
   game,
+  transitions = [],
   onNode,
   onRoad,
 }: {
   game: Game;
+  transitions?: Transition[];
   onNode: (n: number) => void;
   onRoad: (n: number) => void;
 }) {
   const [pieces, setPieces] = useState(() => reconcilePieces([], game));
-  const previous = useRef(game);
+  const previous = useRef(game),
+    last = useRef(transitions.at(-1)?.id ?? 0);
   const [reduced] = useState(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
   useLayoutEffect(() => {
     if (previous.current === game) return;
-    const old = previous.current;
-    setPieces((current) =>
-      reconcilePieces(current, game, old).filter((p) => !reduced || !p.gone),
+    const pending = transitions.filter(
+      (t) => t.id > last.current && t.after.id === game.id,
     );
+    if (previous.current.id !== game.id || !pending.length)
+      setPieces(reconcilePieces([], game));
+    else
+      setPieces((current) =>
+        pending
+          .reduce(
+            (ps, t) => reconcilePieces(ps, t.after, t.before, t.at),
+            current,
+          )
+          .filter((p) => !reduced || !p.gone),
+      );
+    last.current = transitions.at(-1)?.id ?? 0;
     previous.current = game;
-  }, [game]);
+  }, [game, transitions, reduced]);
   function complete(piece: Piece) {
     setPieces((current) =>
       current.flatMap((p) =>
-        p.id === piece.id &&
-        p.revision === piece.revision &&
-        p.gone === piece.gone
+        p.uid === piece.uid && endTime(p) === endTime(piece)
           ? p.gone
             ? []
-            : [{ ...p, motion: "idle" as const, from: p.at }]
+            : [{ ...p, steps: [] }]
           : [p],
       ),
     );
   }
   return (
     <>
-      {pieces
-        .filter((p) => !reduced || !p.gone)
-        .map((piece) => (
-          <AnimatedPiece
-            key={`${piece.id}-${piece.gone ? "ghost" : "live"}`}
-            piece={piece}
-            onNode={onNode}
-            onRoad={onRoad}
-            onDone={complete}
-            reduced={reduced}
-          />
-        ))}
+      {pieces.map((piece) => (
+        <AnimatedPiece
+          key={piece.uid}
+          piece={piece}
+          onNode={onNode}
+          onRoad={onRoad}
+          onDone={complete}
+          reduced={reduced}
+        />
+      ))}
     </>
   );
 }

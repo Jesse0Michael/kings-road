@@ -54,7 +54,7 @@ export function createGame(human: Role, seed = Date.now() >>> 0): Game {
     moved: [],
     runner: 0,
     visited: [0],
-    scored: [0],
+    scored: [],
     budget: 0,
     dice: [],
     seed: seed || 1,
@@ -84,6 +84,15 @@ function random(g: Game, sides: number) {
   g.seed = (Math.imul(g.seed, 1664525) + 1013904223) >>> 0;
   return 1 + Math.floor((g.seed / 4294967296) * sides);
 }
+export function rollDice(state: Game) {
+  const g = { ...state };
+  const sides = g.turn === "Builder" ? 4 : g.turn === "Army" ? 6 : 8;
+  const dice = Array.from(
+    { length: g.turn === "Builder" ? 3 : g.turn === "Army" ? 2 : 1 },
+    () => random(g, sides),
+  );
+  return { dice, seed: g.seed };
+}
 function next(g: Game) {
   g.budget = 0;
   g.dice = [];
@@ -96,7 +105,7 @@ function next(g: Game) {
     g.turn = "Runner";
     g.phase = "roll";
     g.visited = [g.runner];
-    g.scored = [g.runner];
+    g.scored = [];
   } else {
     g.turn = "Builder";
     g.round++;
@@ -109,13 +118,11 @@ export function act(state: Game, a: Action): Game {
   if (a.type === "roll" && g.phase === "roll") {
     if (g.turn === "Runner") {
       g.visited = [g.runner];
-      g.scored = [g.runner];
+      g.scored = [];
     }
-    const sides = g.turn === "Builder" ? 4 : g.turn === "Army" ? 6 : 8;
-    g.dice = Array.from(
-      { length: g.turn === "Builder" ? 3 : g.turn === "Army" ? 2 : 1 },
-      () => random(g, sides),
-    );
+    const rolled = rollDice(g);
+    g.dice = rolled.dice;
+    g.seed = rolled.seed;
     const total = g.dice.reduce((a, b) => a + b, 0);
     g.budget = g.turn === "Builder" ? Math.floor(total / 2) : total;
     g.phase =

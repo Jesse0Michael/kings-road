@@ -1,63 +1,62 @@
-# King’s Road MVP decisions
+# King’s Road implementation decisions
 
 ## Product
 
-A static, browser-only game: one human chooses any role and plays against two computer rivals. The rules remain asymmetric and unbalanced as designed. There is no backend or account system.
+A static, browser-only game: one human chooses any role and plays against two computer rivals. The rules remain asymmetric and unbalanced as designed. There is no backend or account system. The compact scoreboard sits above the playing surface; the role-colored Roll button appears on the table for the human’s roll phase. Speed preferences live in Settings.
 
-## Art direction
+## Art direction and input
 
-The selected direction is the carved tabletop concept: warm wood, a fixed shallow overhead perspective, muted crimson soldiers, warm stone Builder walls with gold ownership accents, and a unique teal hooded thief with a dagger and belt pouch for the Runner. The Army wears faceted steel helmets and carries crimson shields with swords tucked close. The castle is an engraved emblem inset into the board rather than a separate playing piece. Roads are dark grooves connecting the six nodes. Walls cross these roads perpendicularly. Dice and interface accents follow role colors.
+The carved tabletop uses a semi-realistic timber table texture and a quieter continuous wood texture on the pentagonal board. Both are generated, bundled WebP assets. Canvas-drawn engravings and a matching bump map add the roads, Roman numerals I–V, borders, and central castle emblem directly to the board surface. The castle is part of the board; node labels and soldier counts do not float over the scene.
 
-The board, castle engraving, figures, dice, and wood grain are generated in code. Wood uses separate color and bump textures with plank seams, knots, pores and worn varnish; the table has its own darker surface. Fonts are bundled locally. Numeric labels retain readable counts when forces or wall stacks grow large. Up to five soldiers and seven walls per location/road are modeled, with exact counts in labels and controls. The Runner and soldiers retain stable visual identities while moving between nodes. They lift, glide with a small rotation, and settle; new walls and soldiers drop onto the board with a damped bounce.
+Faceted Army soldiers carry close-held swords and crimson kite shields, with steel helmets and shoulder armor. The Runner is a distinct teal hooded traveler with a visible face, cloak, leather accessories, and a small dagger. Warm stone walls cross roads perpendicularly. Role colors carry through dice, scores, input highlights, and controls. Fonts are bundled locally.
 
-## Rules interpretations
+Buildable roads have a soft gold highlight only on the human Builder’s turn. A broad board-plane hit test selects the nearest road, excluding node junctions and rejecting ambiguous taps between adjacent edges. Clicking an existing wall builds on that same road. Army origins and legal destinations have subtle crimson rings; the selected origin turns gold. Deployment highlights honor capacity and the Runner’s protected node. The same validation drives labeled controls beside the board.
 
-Author confirmations supersede the relevant wording in the original rules:
+## Rules and capacity
 
-- An Army soldier may remain in place. Holding remaining soldiers ends the movement phase, not the entire Army turn; reinforcements follow.
-- The Runner may end movement early.
-- Runner scoring is now per turn: the starting location is already visited, and each other unique node entered earns one point. Repeated visits earn nothing until the next Runner turn.
+Author confirmations supersede the relevant wording in the [original rules](rules.md):
 
-Implementation decisions where the prototype did not prescribe the detail:
-
-- Exploration resets only at the start of the next Runner turn, never after visiting all six locations. Total scores are cumulative.
-- Army movement resolves sequentially in the chosen order. Each existing soldier moves at most once; newly deployed soldiers wait until the next Army turn.
-- A soldier attempting a blocked road is sacrificed at that road. It destroys exactly one wall and does not cross or score a castle arrival.
-- A blocked Runner crossing requires enough points to clear every wall: two movement points per wall, with no additional crossing cost. Partial destruction without crossing is unavailable.
-- Entering an occupied location removes exactly one soldier, even if others remain.
+- Army soldiers may remain in place. Holding remaining soldiers ends movement; reinforcements follow.
+- Each road holds five walls. Each perimeter node holds five soldiers.
+- Selecting an Army origin moves all ready soldiers as a group. On a blocked road, one soldier sacrifices per wall. Survivors cross up to destination capacity. Excess soldiers stay ready at their origin and can try another road. A soldier that crosses cannot move again that turn; new reinforcements wait until the next Army turn.
+- Castle arrivals score and leave immediately, so castle occupancy does not accumulate.
+- Deployments cannot use the Runner’s node. If every eligible placement is full, leftover reinforcements or construction are discarded. Older over-cap saves are not trimmed; additions wait until below the cap.
+- The Runner may end movement early. A blocked crossing costs two movement points per wall, including the crossing. It must clear every wall to cross; partial destruction is unavailable.
+- Entering an occupied location removes exactly one soldier, with no Builder point.
+- The Runner scores once per unique location **entered during that turn**. Starting on a location gives no point, but leaving and returning earns one. Repeated visits earn nothing further that turn. Visiting all six never resets scoring mid-turn. Eligibility resets at the next Runner turn; total scores accumulate.
 - Victory is immediate at 15, including Builder points earned during an Army turn.
-- The Builder spends all purchased walls; the Army deploys its full rolled reinforcements. Neither has an optional phase skip. Only Army movement and Runner movement can end early.
+- The Builder spends all purchased walls and the Army deploys all placeable reinforcements. Only Army movement and Runner movement have an optional early end.
 
 ## State and persistence
 
-Version 1 stores the complete serializable game state, including the random seed, turn phase, available budget, individual soldiers and movement eligibility, exploration sets, scores, and recent event log. Only committed actions are saved; reloading during a dice animation restores the last committed state. A roll from that state yields the same result.
+Version 1 stores the complete serializable game state: random seed, turn phase, budget, individual soldiers and movement eligibility, visited/scored nodes, scores, and recent event log. Only committed actions are saved. Reloading during a dice animation restores the state before that roll, and rolling again yields the same result. Reloading during piece motion restores the latest game state with pieces at rest.
 
-Browser localStorage keeps one active game and the latest 100 completed results. Save failures display a warning with export guidance. Imports are size-limited and shape-validated. Export/import transports the active game; it does not merge completed-game history. Unsupported/corrupt saved games are ignored on startup.
+`visited` records physical visits, including the turn’s starting location. `scored` records locations that actually earned a point and starts empty. This distinction allows the starting location to score on its first return. Old saves retain their current turn’s scoring history until the next Runner turn.
+
+Browser localStorage keeps one active game and the latest 100 completed results. Save failures display an export warning. Imports are size-limited and shape-validated. Export/import transports the active game without merging completed-game history. Unsupported or corrupt saved games are ignored on startup.
 
 ## Computer players
 
-The Builder prioritizes pressured castle approaches, with diminishing value for stacking walls on a single road. The Army prefers the castle and seeks lower-wall alternatives when heavily blocked. The Runner prioritizes unscored affordable destinations. These are baseline public-information strategies; no computer receives extra dice or hidden information.
+The Builder prioritizes pressured castle approaches, with diminishing value for stacking walls on a single road. The Army prefers the castle and seeks lower-wall alternatives when heavily blocked. The Runner favors affordable destinations it has not scored this turn. These baseline strategies use public information and the same validated actions as the human.
 
-## Rendering and dice
-
-The engine determines seeded dice results. Rapier supplies gravity, collision, and tumbling; after the roll interval, dice transition to a readable authoritative result. Physical settling does not determine randomness. Reduced-motion users skip the rolling interval. A WebGL failure shows a fallback message while labeled game controls remain usable.
-
-The fixed camera and compact piece counts keep the scene suitable for modern desktop and mobile browsers. Geometry, textures, and fonts do not require external runtime requests. Rapier increases the initial bundle size; the production build currently warns about large JavaScript chunks.
-
-## Capacity playtest revision
-
-All ten roads now hold at most five walls. Perimeter nodes hold at most five Army soldiers. Movement selects all ready soldiers at the origin as a group: one soldier sacrifices per wall, then survivors cross up to the available destination capacity. Excess soldiers remain at the origin and stay eligible to try another road. Soldiers that moved cannot move again that turn. Castle arrivals score and leave immediately, so castle occupancy does not accumulate.
-
-Deployments cannot exceed capacity or use the Runner’s node. If no eligible spaces remain, unused reinforcements are discarded. If every road is full, unused construction is discarded. Older saved games are not destructively trimmed: existing over-cap groups/walls remain, but cannot receive additions until below the cap.
-
-Fast computer turns is now a browser-persisted preference in Settings, rather than a control beside the board.
-
-## Per-turn exploration and consolidated scores
-
-The scoreboard is a compact three-role strip above the board on both desktop and mobile. Runner exploration now tracks unique nodes within one Runner turn (one turn per round). The turn starts with its current node already visited. Every other node may score once, and visiting all six does not reset eligibility. Save/resume retains the current turn’s visited set. Existing accumulated scores are retained; earlier exploration sets are replaced when the next Runner turn begins.
+Computer actions are spaced by 210 ms normally or 100 ms in fast mode. They do not wait for placement or movement to settle. Dice finish before their budget becomes available; fast mode shortens computer rolls.
 
 ## Piece motion
 
-The scene reconciles committed game states into persistent visual pieces. Placement and movement take roughly 950 ms, with gentle tilt and damped settling. Stationary soldiers keep their slots when a neighbor leaves. Army groups travel together; scoring soldiers move into the castle before fading, sacrifices move to the breached road, and Runner victims are removed at their location. Destroyed walls persist as two falling chunks plus a small fading dust puff, then are disposed. These are controlled presentation animations, rather than dynamic rigid bodies that can move gameplay pieces out of place.
+Presentation consumes committed state transitions while gameplay proceeds immediately. New placements take 600 ms; lifted movement takes 720 ms; removal takes 430 ms. Independent pieces animate concurrently. Repeated commands for the same piece append to its path, so a quickly tapped Runner route still visits every selected location. The renderer retains intermediate transitions even when React batches inputs.
 
-Player controls and AI actions wait until the settling interval completes. Fast computer turns still shortens pauses and dice rolls, while retaining readable piece motion. Reduced-motion users skip piece animation and its delay. Existing saves restore pieces at rest rather than replaying old placements; only committed game state is saved. New games/imports cancel outstanding presentation timers.
+Stationary soldiers keep their slots when neighbors leave. Army groups travel together; scoring soldiers reach the castle before fading, and sacrificed soldiers travel to the breached road. Runner victims remain intact until the traveler reaches their location, including on queued paths. Broken walls become two falling chunks and a subtle dust puff. A rebuilt wall can coexist briefly with the fading remains of its predecessor because each visible incarnation has its own identity.
+
+These controlled presentation animations do not affect rules or block controls. Reduced-motion users skip presentation. New games and imports cancel pending roll timers and restore the appropriate scene.
+
+## Dice
+
+Each die has permanent face numbering, including conventional opposite faces on d6/d8 and apex-readable numbers on d4. `scripts/generate-dice.mjs` uses Rapier during development to simulate convex dice under gravity, friction, and restitution, collecting a settled trajectory for every result. These recordings are checked into the repository. Unit tests verify the final orientation and d4 upper-tip labels.
+
+The rules engine determines a seeded roll. The browser interpolates the corresponding recorded positions and quaternions; there is no face relabeling or correction after landing. Seeded yaw variation keeps repeated results from looking identical. Dice roll in separated lanes on a leather strip to avoid interpenetration. Results remain on the table until the next roll. Human rolls and normal computer rolls take 1.9 seconds; fast computer rolls take 1.2 seconds. Reduced-motion users see the final pose immediately.
+
+Rapier is a development dependency only. The production app needs no physics WebAssembly download or network service. Assets use Vite’s base URL so they load from the GitHub Pages project subdirectory.
+
+## Rendering limits
+
+The fixed camera and small piece counts keep the scene practical for modern desktop and mobile browsers. The app still requires WebGL for the tabletop; a rendering failure leaves the labeled controls available. Three.js produces a sizeable initial JavaScript bundle and Vite’s standard large-chunk warning. There is no PWA service worker or guaranteed offline reload support.

@@ -158,72 +158,138 @@ test("Runner scores a destination once per turn through the actual controls", as
   const state = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("kings-road.game.v1")!),
   );
-  expect(state.scores.Runner).toBe(1);
-  expect(state.scored).toEqual([0, 1]);
+  expect(state.scores.Runner).toBe(2);
+  expect(state.scored).toEqual([1, 0]);
   await expect(
     page.getByLabel("Game scores").locator(".score").nth(2),
-  ).toContainText("1");
+  ).toContainText("2");
 });
 
-test("piece actions lock controls while settling and reduced motion skips the delay", async ({
+test("rapid placements remain enabled while pieces animate and Roll is on the board", async ({
   page,
 }, testInfo) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   const g = createGame("Builder", 42);
   g.phase = "build";
-  g.budget = 2;
+  g.budget = 5;
   await page.goto("/");
   await page.locator("input[type=file]").setInputFiles({
     name: "builder.json",
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify(g)),
   });
-  const clockStart = new Date("2026-11-15T12:00:00Z");
-  await page.clock.install({ time: clockStart });
-  await page.clock.pauseAt(new Date(clockStart.getTime() + 1000));
+  await page.clock.install();
+  await page.clock.pauseAt(new Date());
   await page.locator(".roads button").first().click();
-  await expect(page.getByRole("status")).toHaveText("Pieces settling…");
-  await expect(page.locator(".roads button").first()).toBeDisabled();
-  await page.clock.runFor(240);
-  await page.screenshot({ path: testInfo.outputPath("wall-placement.png") });
-  await page.clock.runFor(900);
-  await expect(page.getByRole("status")).toHaveCount(0);
   await expect(page.locator(".roads button").first()).toBeEnabled();
-  // A breached road leaves debris briefly, while the Runner is carried across it.
-  const runner = createGame("Runner", 42);
-  runner.turn = "Runner";
-  runner.phase = "run";
-  runner.budget = 8;
-  runner.walls[0] = 1;
-  await page.locator("input[type=file]").setInputFiles({
-    name: "runner.json",
-    mimeType: "application/json",
-    buffer: Buffer.from(JSON.stringify(runner)),
-  });
-  await page.locator(".locations button").nth(1).click();
-  await expect(page.getByRole("status")).toBeVisible();
-  await page.clock.runFor(320);
+  await page.locator(".roads button").first().click();
+  await page.locator(".roads button").nth(1).click();
+  const state = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("kings-road.game.v1")!),
+  );
+  expect(state.walls.slice(0, 2)).toEqual([2, 1]);
+  expect(state.budget).toBe(2);
+  await page.clock.runFor(230);
   await page.screenshot({
-    path: testInfo.outputPath("wall-breach-runner.png"),
+    path: testInfo.outputPath("overlapping-placements.png"),
   });
-  await page.clock.runFor(850);
-  await expect(page.getByRole("status")).toHaveCount(0);
-  expect(
-    await page.evaluate(
-      () => JSON.parse(localStorage.getItem("kings-road.game.v1")!).walls[0],
-    ),
-  ).toBe(0);
-  await page.clock.resume();
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.reload();
+  const rollGame = createGame("Runner", 19);
+  rollGame.turn = "Runner";
+  rollGame.phase = "roll";
+  await page.locator("input[type=file]").setInputFiles({
+    name: "roll.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(rollGame)),
+  });
+  const roll = page.getByRole("button", { name: "Roll", exact: true });
+  expect(await roll.evaluate((e) => e.closest(".table-area") !== null)).toBe(
+    true,
+  );
+  await roll.click();
+  await expect(roll).toBeDisabled();
+  // Keep this animation test on virtual time, including the roll's commit timer.
+  await page.clock.fastForward(2100);
+  await expect(page.getByLabel("Dice results")).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("large road tap targets pick the intended edge; Army selections and mobile Roll work", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const g = createGame("Builder", 42);
+  g.phase = "build";
+  g.budget = 5;
   await page.locator("input[type=file]").setInputFiles({
     name: "builder.json",
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify(g)),
   });
-  await page.locator(".roads button").first().click();
-  await expect(page.locator(".roads button").first()).toBeEnabled();
-  await expect(page.getByRole("status")).toHaveCount(0);
-  expect(errors).toEqual([]);
+  // Project a point 0.30 board-units beside the engraved road into canvas coordinates.
+  const { PerspectiveCamera, Vector3 } = await import("three");
+  const canvas = page.locator("canvas");
+  await expect(canvas).toBeVisible();
+  await page.waitForTimeout(1200);
+  const box = (await canvas.boundingBox())!;
+  const cam = new PerspectiveCamera(42, box.width / box.height, 0.1, 1000);
+  cam.position.set(0, 8.8, 9.1);
+  cam.lookAt(0, 0, 0.15);
+  cam.updateMatrixWorld();
+  const ax = 0,
+    az = -3.05,
+    bx = Math.sin((Math.PI * 2) / 5) * 3.05,
+    bz = -Math.cos((Math.PI * 2) / 5) * 3.05,
+    len = Math.hypot(bx - ax, bz - az);
+  const projected = new Vector3(
+    (ax + bx) / 2 - ((bz - az) / len) * 0.3,
+    0.181,
+    (az + bz) / 2 + ((bx - ax) / len) * 0.3,
+  ).project(cam);
+  await page.mouse.click(
+    box.x + ((projected.x + 1) * box.width) / 2,
+    box.y + ((1 - projected.y) * box.height) / 2,
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => JSON.parse(localStorage.getItem("kings-road.game.v1")!).walls[0],
+      ),
+    )
+    .toBe(1);
+  const army = createGame("Army", 7);
+  army.turn = "Army";
+  army.phase = "move";
+  army.units = [
+    { id: 1, node: 1 },
+    { id: 2, node: 1 },
+  ];
+  await page.locator("input[type=file]").setInputFiles({
+    name: "army.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(army)),
+  });
+  await expect(page.locator(".locations button").nth(1)).toBeEnabled();
+  await expect(page.locator(".locations button").nth(2)).toBeDisabled();
+  await page.locator(".locations button").nth(1).click();
+  await expect(page.locator(".locations button").nth(2)).toBeEnabled();
+  await page.screenshot({
+    path: testInfo.outputPath("mobile-army-targets.png"),
+    fullPage: true,
+  });
+  await page.locator(".locations button").nth(2).click();
+  expect(
+    await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("kings-road.game.v1")!).units.every(
+        (u: { node: number }) => u.node === 2,
+      ),
+    ),
+  ).toBe(true);
+  await expect(page.locator(".table-area .roll-button")).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
 });

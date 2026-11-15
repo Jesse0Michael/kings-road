@@ -83,7 +83,7 @@ The original rules above are retained as supplied. Subsequent author clarificati
 - The Runner may end its turn early, leaving movement points unused.
 - Returning to the Runner’s original starting space counts for scoring. The starting-space exclusion in the original text above is superseded by this clarification.
 
-For circuit reset and sequencing details used by the browser MVP, see [implementation decisions](design.md).
+For the current scoring and sequencing details used by the browser game, see [implementation decisions](design.md).
 
 ## Current browser playtest revision
 
@@ -97,4 +97,6 @@ These playtest revisions supersede the original unlimited stacking and individua
 
 ## Latest Runner scoring clarification
 
-Runner points are awarded per unique node entered during that Runner turn, rather than per exploration circuit. The location where the turn begins is already visited. Backtracking does not award extra points. The visited set resets at the next Runner turn, even if not all six locations were reached; visiting all six never resets it within a turn. Accumulated scores are retained. This supersedes earlier circuit-reset and starting-space clarifications above.
+Runner points are awarded per unique node **entered during that Runner turn**, rather than per exploration circuit. Starting on a node gives no point. If the Runner leaves and returns to that starting node, it earns one point for that entry. Further visits to any node already scored that turn earn nothing.
+
+For example, I → II → I → II → I earns two points: one for entering II and one for returning to I. Scoring eligibility resets at the next Runner turn, even if not all six locations were reached. Visiting all six never resets it within a turn. Accumulated scores are retained. This supersedes the original circuit-reset rule and confirms that a return to the starting space can score once per turn.
