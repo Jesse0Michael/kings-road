@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { createGame } from "../../src/game/engine";
-import { resumeGame } from "./fixtures";
+import { resumeGame, tapNode } from "./fixtures";
 
 // Inspect the actual Three scene through the already-loaded development renderer.
 // This requires no test API or extra data in the production application.
@@ -46,7 +46,7 @@ test("queued Runner collections follow the rendered piece after the next turn be
     new Date(await page.evaluate(() => Date.now() + 1000)),
   );
   for (const node of [1, 2, 3]) {
-    await page.locator(".locations button").nth(node).click();
+    await tapNode(page, node);
     await page.clock.runFor(100);
   }
   expect(
@@ -94,8 +94,8 @@ test("Army can hold remaining soldiers from the tabletop on mobile", async ({
   expect(await hold.evaluate((el) => !!el.closest(".table-controls"))).toBe(
     true,
   );
-  await page.locator(".locations button").nth(1).click();
-  await page.locator(".locations button").nth(2).click();
+  await tapNode(page, 1);
+  await tapNode(page, 2);
   await expect(ready.locator("b")).toHaveText("1");
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(hold).toBeInViewport();

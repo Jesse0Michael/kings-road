@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { createGame } from "../../src/game/engine";
-import { resumeGame } from "./fixtures";
+import { resumeGame, tapNode, waitForBoard } from "./fixtures";
 
 declare global {
   interface Window {
@@ -182,12 +182,12 @@ test("real decoded effects follow queued Runner movement and capture", async ({
     .poll(() => page.evaluate(() => window.__krAudio.starts.length))
     .toBe(2);
   await page.getByRole("button", { name: /^Return to the table/ }).click();
-  await expect(page.locator(".locations")).toBeVisible();
+  await waitForBoard(page);
   await page.evaluate(() => {
     window.__krAudio.starts = [];
   });
-  await page.locator(".locations button").nth(1).click();
-  await page.locator(".locations button").nth(2).click();
+  await tapNode(page, 1);
+  await tapNode(page, 2);
   const starts = await page.evaluate(() => window.__krAudio.starts);
   const moves = starts.filter((s) => Math.abs(s.duration - 0.88) < 0.005);
   const capture = starts.find((s) => Math.abs(s.duration - 0.42) < 0.005)!;

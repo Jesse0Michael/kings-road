@@ -356,43 +356,6 @@ aside {
   color: #d8bd91;
   font-size: 12px;
 }
-.action-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 5px;
-  margin-top: 12px;
-}
-.action-grid button {
-  border: 1px solid #57422e;
-  padding: 10px 5px;
-  color: #dec397;
-  border-radius: 3px;
-  font:
-    16px Georgia,
-    serif;
-  background: #33251b;
-}
-.action-grid button small {
-  font:
-    9px Arial,
-    sans-serif;
-  display: block;
-  color: #a28e73;
-  margin-top: 5px;
-}
-.action-grid button.selected {
-  border-color: #e0bd77;
-  background: #5a4228;
-}
-.roads {
-  grid-template-columns: repeat(2, 1fr);
-}
-.roads button {
-  font-size: 12px;
-}
-.locations {
-  margin-top: 22px;
-}
 .audio-settings {
   border-top: 1px solid #4a382a;
   padding-top: 18px;
@@ -434,12 +397,35 @@ aside {
   border-top: 1px solid #4a382a;
   padding-top: 10px;
 }
-.journal > p:not(.eyebrow) {
-  font-size: 10px;
-  line-height: 1.6;
-  color: #9d896f;
+.journal-entries {
+  list-style: none;
+  margin: 0;
+  padding: 0 10px 0 0;
+  max-height: 430px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #806340 transparent;
+}
+.journal-entries:focus-visible {
+  outline: 1px solid #d4ad67;
+  outline-offset: 4px;
+}
+.journal-entries li {
   border-bottom: 1px solid #ffffff08;
-  padding-bottom: 8px;
+  padding: 12px 0;
+}
+.journal-entries small {
+  display: block;
+  color: #9d896f;
+  font-size: 9px;
+  margin-bottom: 5px;
+}
+.journal-entries p,
+.journal-empty {
+  margin: 0;
+  color: #c3ad8f;
+  font-size: 12px;
+  line-height: 1.75;
 }
 .paper {
   max-width: 850px;
@@ -626,9 +612,6 @@ aside {
   footer {
     font-size: 7px;
     gap: 15px;
-  }
-  .action-grid.roads {
-    grid-template-columns: repeat(5, 1fr);
   }
 }
 @media (prefers-reduced-motion: reduce) {

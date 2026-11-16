@@ -219,8 +219,8 @@ class SceneBoundary extends Component<
       <div className="scene-fallback">
         <h2>The tabletop needs WebGL</h2>
         <p>
-          You can still play using the labeled controls. Enable hardware
-          acceleration for the 3D view.
+          Enable WebGL and hardware acceleration, then reload to play on the
+          board. Your saved game will be here when you return.
         </p>
       </div>
     ) : (

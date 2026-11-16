@@ -2,11 +2,11 @@
 
 ## Product
 
-A static, browser-only game: one human chooses any role and plays against two computer rivals. The rules remain asymmetric and unbalanced as designed. There is no backend or account system. The compact scoreboard sits above the playing surface and shows each role's score. The winning card is labeled and pulses gently; reduced-motion mode keeps a static highlight. The role-colored Roll button appears on the table for the human’s roll phase. Audio preferences live in Settings. The journal uses the board's Roman numerals, including when displaying older saved entries.
+A static, browser-only game: one human chooses any role and plays against two computer rivals. The rules remain asymmetric and unbalanced as designed. There is no backend or account system. The compact scoreboard sits above the playing surface and shows each role's score. The winning card is labeled and pulses gently; reduced-motion mode keeps a static highlight. The role-colored Roll button appears on the table for the human’s roll phase. Audio preferences live in Settings. The journal records action outcomes with Roman-numeral routes, including when displaying older saved entries.
 
 A role-colored counter in the upper-right corner of the tabletop shows walls left to build, soldiers left to deploy, or movement points left. During Army movement, it counts soldiers still ready to move. It updates without waiting for piece animations. The counter also shows computer turns and stays on the table at mobile sizes; it is hidden during the roll phase and after victory.
 
-The Runner's End movement and Army's Hold remaining soldiers controls live directly beneath their counters, so they remain in the board view on mobile. During Runner turns, silver coins with a crown and a five-road reverse rotate above locations that can still score. `runnerCanScore` drives these coins, the labeled +1 destinations, scoring, and AI preferences. The starting location has no coin; visited locations lose theirs when the traveler arrives. Unvisited coins remain until the turn ends and its queued movement finishes. Colored rings still indicate affordable connected moves. Reduced motion keeps the coins still.
+The Runner's End movement and Army's Hold remaining soldiers controls live directly beneath their counters, so they remain in the board view on mobile. During Runner turns, silver coins with a crown and a five-road reverse rotate above locations that can still score. `runnerCanScore` drives these coins, scoring, and AI preferences. The starting location has no coin; visited locations lose theirs when the traveler arrives. Unvisited coins remain until the turn ends and its queued movement finishes. Colored rings still indicate affordable connected moves. Reduced motion keeps the coins still.
 
 The landing page pairs role selection with a gameplay preview; header navigation provides How to play and Return to table. How to play uses three role cards with small, silent MP4 examples of the real renderer and rules engine. Each card includes its relevant movement costs or capacity limits. Clips use static JPEG posters for reduced motion, have pause/play controls, and pause when offscreen or when the document is hidden. The development-only capture stage and generator are under `scripts/`; only compressed videos and posters ship. No extra WebGL contexts run on the learning pages.
 
@@ -16,7 +16,7 @@ The carved tabletop uses a semi-realistic timber table texture and a quieter con
 
 Faceted Army soldiers carry close-held swords and crimson kite shields, with steel helmets and shoulder armor. The Runner is a distinct teal hooded traveler with a visible face, cloak, leather accessories, and a small dagger. Warm stone walls cross roads perpendicularly. Role colors carry through dice, scores, input highlights, and controls. Fonts are bundled locally.
 
-Buildable roads have a soft gold highlight only on the human Builder’s turn. A broad board-plane hit test selects the nearest road, excluding node junctions and rejecting ambiguous taps between adjacent edges. Clicking an existing wall builds on that same road. Army origins and legal destinations have subtle crimson rings; the selected origin turns gold. Deployment highlights honor capacity and the Runner’s protected node. The same validation drives labeled controls beside the board.
+Buildable roads have a soft gold highlight only on the human Builder’s turn. A broad board-plane hit test selects the nearest road, excluding node junctions and rejecting ambiguous taps between adjacent edges. Clicking an existing wall builds on that same road. Army origins and legal destinations have subtle crimson rings; the selected origin turns gold. Deployment highlights honor capacity and the Runner’s protected node. All placements and destination choices use the board directly; there are no duplicate side controls. Roll, End movement, and Hold remaining soldiers remain on the tabletop.
 
 ## Rules and capacity
 
@@ -40,6 +40,12 @@ Version 1 stores the complete serializable game state: random seed, turn phase, 
 `visited` records physical visits, including the turn’s starting location, and excludes them from scoring. `scored` records locations that actually earned a point and starts empty. Both sets guard eligibility, including on resumed saves. Existing cumulative scores are retained; the starting location and all previously visited locations remain ineligible for subsequent actions under the current rule.
 
 Browser localStorage keeps one active game and the latest 100 completed results. Save failures explain that progress will last only while the tab stays open. Saved state is shape-validated on load; unsupported or corrupt saved games are ignored on startup. Players resume through Return to table in the header. Starting a new game replaces the active save; there is no manual file import/export.
+
+## Event log
+
+`game/journal.ts` derives structured events from committed before/after states. Consecutive Builder placements and Army deployments merge within the same round. Each Army march records actual crossings, sacrifices, walls cleared, castle arrivals, and soldiers left behind. Runner moves merge into a route with totals for coins, destroyed walls, and defeated soldiers; backtracking adds no coin. Immediate victories record only actions completed before the win and put the victory announcement first. Rolls, unplaced allowances, and illegal actions add no events.
+
+The latest 60 entries persist in the existing version-1 save and appear newest first in a scrollable journal. Reloading mid-turn preserves running totals. Older string logs remain compatible: roll messages are hidden, adjacent wall placements are consolidated, and numeric locations use Roman numerals. Structured entries are validated on load.
 
 ## Computer players
 
@@ -75,4 +81,4 @@ Dice clacks are scheduled at actual table contacts detected from the recorded ph
 
 ## Rendering limits
 
-The fixed camera and small piece counts keep the scene practical for modern desktop and mobile browsers. The app still requires WebGL for the tabletop; a rendering failure leaves the labeled controls available. Three.js produces a sizeable initial JavaScript bundle and Vite’s standard large-chunk warning. There is no PWA service worker or guaranteed offline reload support.
+The fixed camera and small piece counts keep the scene practical for modern desktop and mobile browsers. The app requires WebGL and pointer input for board actions; a rendering failure explains how to enable WebGL and reload the saved game. Three.js produces a sizeable initial JavaScript bundle and Vite’s standard large-chunk warning. There is no PWA service worker or guaranteed offline reload support.

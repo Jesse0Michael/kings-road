@@ -1,4 +1,5 @@
 import { Game, roles } from "../game/engine";
+import { validLogEntry } from "../game/journal";
 export type Result = {
   id: string;
   winner: string;
@@ -45,7 +46,7 @@ export function validGame(v: unknown): v is Game {
     Array.isArray(g.dice) &&
     g.dice.every((n) => Number.isInteger(n) && n >= 1 && n <= 8) &&
     Array.isArray(g.log) &&
-    g.log.every((s) => typeof s === "string") &&
+    g.log.every(validLogEntry) &&
     !!g.scores &&
     roles.every((r) => Number.isInteger(g.scores[r]) && g.scores[r] >= 0) &&
     (g.winner === null || roles.includes(g.winner))

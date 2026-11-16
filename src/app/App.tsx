@@ -1,22 +1,18 @@
 import type { Transition } from "../scene/motion";
 import { ROLL_MS } from "../scene/Dice";
 import type { DiceRoll } from "../scene/Dice";
-import { nodeSelectable } from "../scene/boardLayout";
 import { aiAction } from "../game/ai";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  WALL_CAP,
   act,
   rollDice,
   createGame,
   Game,
   neighbors,
-  nodeLabels as labels,
   Role,
   roles,
-  runCost,
-  runnerCanScore,
 } from "../game/engine";
+import { journalRows } from "../game/journal";
 import { Table, colors } from "../scene/Table";
 import { history, loadGame, save } from "../persistence";
 import { useGameAudio } from "../audio/useGameAudio";
@@ -74,6 +70,7 @@ export default function App() {
   const [error, setError] = useState("");
   const busy = useRef(false);
   const g = game;
+  const events = g ? journalRows(g.log) : [];
   const human = g?.human === g?.turn;
   const remaining =
     g?.phase === "move"
@@ -383,65 +380,28 @@ export default function App() {
                 </button>
               )}
             </section>
-            {human && !g.winner && g.phase === "build" && (
-              <div className="action-grid roads">
-                {Array.from({ length: 10 }, (_, i) => (
-                  <button
-                    key={i}
-                    disabled={rolling || g.walls[i] >= WALL_CAP}
-                    onClick={() => dispatch({ type: "wall", road: i })}
-                  >
-                    {labels[i < 5 ? i : i - 5]} —{" "}
-                    {labels[i < 5 ? (i + 1) % 5 : 5]}{" "}
-                    <small>{g.walls[i]} walls</small>
-                  </button>
-                ))}
-              </div>
-            )}
-            {human &&
-              !g.winner &&
-              ["move", "deploy", "run"].includes(g.phase) && (
-                <div className="locations">
-                  <p className="eyebrow">
-                    {g.phase === "move"
-                      ? "SELECT OR MOVE SOLDIERS"
-                      : "CHOOSE A LOCATION"}
-                  </p>
-                  <div className="action-grid">
-                    {labels.map((label, n) => {
-                      const count = g.units.filter((u) => u.node === n).length;
-                      const unavailable = !nodeSelectable(g, n, selected);
-                      return (
-                        <button
-                          key={n}
-                          disabled={rolling || unavailable}
-                          className={selected === n ? "selected" : ""}
-                          onClick={() => node(n)}
-                        >
-                          {label}
-                          <small>
-                            {g.phase === "run"
-                              ? runCost(g, n) === Infinity
-                                ? "—"
-                                : `${runCost(g, n)} MP${runnerCanScore(g, n) ? " · +1" : ""}`
-                              : `${count} soldiers`}
-                          </small>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            <section className="journal">
-              <p className="eyebrow">WORD FROM THE ROAD</p>
-              {g.log.slice(0, 5).map((line, i) => (
-                <p key={i}>
-                  {line.replace(
-                    /\blocation ([1-5])\b/g,
-                    (_match, n: string) => `location ${labels[Number(n) - 1]}`,
-                  )}
+            <section className="journal" aria-labelledby="journal-heading">
+              <p className="eyebrow" id="journal-heading">
+                WORD FROM THE ROAD
+              </p>
+              {events.length ? (
+                <ol
+                  className="journal-entries"
+                  aria-label="Game events"
+                  tabIndex={0}
+                >
+                  {events.map((event, i) => (
+                    <li key={i}>
+                      {event.round && <small>Round {event.round}</small>}
+                      <p>{event.text}</p>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="journal-empty">
+                  The road awaits your first move.
                 </p>
-              ))}
+              )}
             </section>
           </aside>
         </main>

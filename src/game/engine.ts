@@ -1,3 +1,5 @@
+import { recordAction, type LogEntry } from "./journal";
+
 export const roles = ["Builder", "Army", "Runner"] as const;
 export type Role = (typeof roles)[number];
 export const nodeLabels = ["I", "II", "III", "IV", "V", "♜"] as const;
@@ -31,7 +33,7 @@ export type Game = {
   dice: number[];
   seed: number;
   winner: Role | null;
-  log: string[];
+  log: LogEntry[];
 };
 export type Action =
   | { type: "roll" }
@@ -60,7 +62,7 @@ export function createGame(human: Role, seed = Date.now() >>> 0): Game {
     dice: [],
     seed: seed || 1,
     winner: null,
-    log: ["A new journey begins on the King’s Road."],
+    log: [],
   };
 }
 export const roadBetween = (a: number, b: number) =>
@@ -78,14 +80,10 @@ export const runCost = (g: Game, n: number) => {
   // Fighting the one soldier removed on arrival costs one extra movement point.
   return crossing + (g.units.some((u) => u.node === n) ? 1 : 0);
 };
-function note(g: Game, s: string) {
-  g.log = [s, ...g.log].slice(0, 60);
-}
 function point(g: Game, r: Role) {
   g.scores[r]++;
   if (g.scores[r] >= 15) {
     g.winner = r;
-    note(g, `${r} wins the King’s Road!`);
   }
 }
 function random(g: Game, sides: number) {
@@ -135,10 +133,6 @@ export function act(state: Game, a: Action): Game {
     g.budget = g.turn === "Builder" ? Math.floor(total / 2) : total;
     g.phase =
       g.turn === "Builder" ? "build" : g.turn === "Army" ? "deploy" : "run";
-    note(
-      g,
-      `${g.turn} rolled ${g.dice.join(" + ")}. ${g.budget} ${g.turn === "Builder" ? "walls" : g.turn === "Army" ? "reinforcements" : "movement points"} available.`,
-    );
   } else if (
     a.type === "wall" &&
     g.phase === "build" &&
@@ -150,7 +144,6 @@ export function act(state: Game, a: Action): Game {
   ) {
     g.walls[a.road]++;
     g.budget--;
-    note(g, "Builder raised a wall.");
     if (!g.budget) next(g);
   } else if (a.type === "march" && g.phase === "move") {
     const u = g.units.find((u) => u.id === a.unit);
@@ -177,10 +170,6 @@ export function act(state: Game, a: Action): Game {
       if (g.winner) break;
     }
     if (!changed) return state;
-    note(
-      g,
-      "Army group advanced; soldiers without space remain ready at their origin.",
-    );
     if (g.units.every((u) => g.moved.includes(u.id))) g.phase = "roll";
   } else if (
     a.type === "deploy" &&
@@ -207,15 +196,10 @@ export function act(state: Game, a: Action): Game {
     const victim = g.units.find((u) => u.node === a.node);
     if (victim) {
       g.units = g.units.filter((u) => u.id !== victim.id);
-      note(g, "Runner removed one soldier.");
     }
     if (runnerCanScore(g, a.node)) {
       g.scored.push(a.node);
       point(g, "Runner");
-      note(
-        g,
-        `Runner explored ${a.node === 5 ? "the castle" : `location ${nodeLabels[a.node]}`}.`,
-      );
     }
     if (!g.visited.includes(a.node)) g.visited.push(a.node);
     if (!g.budget && !g.winner) next(g);
@@ -223,21 +207,16 @@ export function act(state: Game, a: Action): Game {
     if (g.phase === "move") {
       g.phase = "roll";
       g.moved = g.units.map((u) => u.id);
-      note(g, "Remaining soldiers hold position.");
     } else if (g.phase === "run") {
       next(g);
     } else return state;
   } else return state;
   if (!g.winner && g.phase === "build" && g.walls.every((n) => n >= WALL_CAP)) {
-    note(
-      g,
-      "All roads are at their wall limit. Unused construction is discarded.",
-    );
     next(g);
   }
   if (!g.winner && g.phase === "deploy" && !deploymentAvailable(g)) {
-    note(g, `${g.budget} reinforcements could not deploy: no available space.`);
     next(g);
   }
+  recordAction(state, g, a);
   return g;
 }

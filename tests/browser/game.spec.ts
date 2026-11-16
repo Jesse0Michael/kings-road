@@ -1,6 +1,12 @@
 import { createGame } from "../../src/game/engine";
 import { test, expect } from "@playwright/test";
-import { resumeGame } from "./fixtures";
+import {
+  resumeGame,
+  tapNode,
+  tapRoad,
+  readGame,
+  waitForBoard,
+} from "./fixtures";
 test("new game, 3D scene, movement, reload, rules, and mobile", async ({
   page,
 }, testInfo) => {
@@ -80,7 +86,9 @@ test("human Builder can build and human Army can deploy", async ({ page }) => {
   );
   await roll.click();
   await expect(roll).toBeDisabled();
-  await expect(page.locator(".roads")).toBeVisible();
+  await expect(page.locator("aside button")).toHaveCount(0);
+  await waitForBoard(page);
+  await expect.poll(async () => (await readGame(page)).phase).toBe("build");
   const budget = await page.evaluate(
     () => JSON.parse(localStorage.getItem("kings-road.game.v1")!).budget,
   );
@@ -90,7 +98,11 @@ test("human Builder can build and human Army can deploy", async ({ page }) => {
   await expect(builderCounter.locator("b")).toHaveText(String(budget));
   await expect(builderCounter).toContainText("Walls left");
   for (let i = 0; i < budget; i++) {
-    await page.locator(".roads button:enabled").first().click();
+    const current = await readGame(page);
+    await tapRoad(
+      page,
+      current.walls.findIndex((n) => n < 5),
+    );
     if (i < budget - 1)
       await expect(builderCounter.locator("b")).toHaveText(
         String(budget - i - 1),
@@ -105,7 +117,9 @@ test("human Builder can build and human Army can deploy", async ({ page }) => {
     page.getByRole("button", { name: "Roll", exact: true }),
   ).toBeVisible({ timeout: 30000 });
   await page.getByRole("button", { name: "Roll", exact: true }).click();
-  await expect(page.locator(".locations")).toBeVisible();
+  await expect(page.locator("aside button")).toHaveCount(0);
+  await waitForBoard(page);
+  await expect.poll(async () => (await readGame(page)).phase).toBe("deploy");
   const recruits = await page.evaluate(
     () => JSON.parse(localStorage.getItem("kings-road.game.v1")!).budget,
   );
@@ -114,7 +128,7 @@ test("human Builder can build and human Army can deploy", async ({ page }) => {
   });
   await expect(armyCounter.locator("b")).toHaveText(String(recruits));
   await expect(armyCounter).toContainText("Soldiers left");
-  await page.locator(".locations button").nth(1).click();
+  await tapNode(page, 1);
   await expect(armyCounter.locator("b")).toHaveText(String(recruits - 1));
   expect(
     await page.evaluate(
@@ -133,7 +147,7 @@ test("a resumed game highlights its winner and records history once", async ({
   g.budget = 2;
   g.scores.Runner = 14;
   await resumeGame(page, g);
-  await page.locator(".locations button").nth(1).click();
+  await tapNode(page, 1);
   await expect(
     page.getByRole("heading", { name: "Runner prevails" }),
   ).toBeVisible();
@@ -184,22 +198,19 @@ test("Runner scores a destination once per turn through the actual controls", as
   await expect(page.locator(".journal")).toContainText(
     "Runner explored location V.",
   );
-  for (const n of [1, 0, 1, 0, 1])
-    await page.locator(".locations button").nth(n).click();
+  for (const n of [1, 0, 1, 0, 1]) await tapNode(page, n);
   const state = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("kings-road.game.v1")!),
   );
   expect(state.scores.Runner).toBe(1);
   expect(state.scored).toEqual([1]);
   await expect(page.locator(".journal")).toContainText(
-    "Runner explored location II.",
+    "Runner moved I → II → I → II → I → II; collected 1 coin.",
   );
   await expect(
     page.getByLabel("Game scores").locator(".score").nth(2),
   ).toContainText("1");
-  await expect(page.locator(".locations button").nth(0)).not.toContainText(
-    "+1",
-  );
+  await expect(page.locator("aside button")).toHaveCount(0);
 });
 
 test("rapid placements remain enabled while pieces animate", async ({
@@ -215,10 +226,10 @@ test("rapid placements remain enabled while pieces animate", async ({
   await page.clock.pauseAt(
     new Date(await page.evaluate(() => Date.now() + 1000)),
   );
-  await page.locator(".roads button").first().click();
-  await expect(page.locator(".roads button").first()).toBeEnabled();
-  await page.locator(".roads button").first().click();
-  await page.locator(".roads button").nth(1).click();
+  await tapRoad(page, 0);
+  await expect(page.locator("aside button")).toHaveCount(0);
+  await tapRoad(page, 0);
+  await tapRoad(page, 1);
   const state = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("kings-road.game.v1")!),
   );
@@ -256,8 +267,8 @@ test("Runner allowance counts walls and captures, persists, and remains visible 
   });
   await expect(counter.locator("b")).toHaveText("4");
   await expect(counter).toContainText("Movement points left");
-  await expect(page.locator(".locations button").nth(1)).toContainText("3 MP");
-  await page.locator(".locations button").nth(1).click();
+  await expect(page.locator("aside button")).toHaveCount(0);
+  await tapNode(page, 1);
   await expect(counter.locator("b")).toHaveText("1");
   const state = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("kings-road.game.v1")!),
@@ -265,17 +276,14 @@ test("Runner allowance counts walls and captures, persists, and remains visible 
   expect(state.units).toEqual([{ id: 2, node: 2 }]);
   expect(state.walls[0]).toBe(0);
   expect(state.scores).toEqual({ Builder: 0, Army: 0, Runner: 1 });
-  await expect(page.locator(".locations button").nth(2)).toContainText("2 MP");
-  await expect(page.locator(".locations button").nth(2)).toBeDisabled();
-  await expect(page.locator(".locations button").nth(0)).toBeEnabled();
+  await tapNode(page, 2);
+  expect(await readGame(page)).toEqual(state);
   await page.reload();
   await page
     .getByRole("button", { name: "Return to table", exact: true })
     .click();
   await expect(counter.locator("b")).toHaveText("1");
-  // Let the reloaded WebGL scene finish loading before capturing its overlay.
-  await expect(page.locator("canvas")).toBeVisible();
-  await page.waitForTimeout(1200);
+  await waitForBoard(page);
   await page.screenshot({
     path: testInfo.outputPath("remaining-movement-desktop.png"),
     fullPage: true,
@@ -291,7 +299,9 @@ test("Runner allowance counts walls and captures, persists, and remains visible 
   expect(badge.x + badge.width).toBeLessThanOrEqual(board.x + board.width);
   expect(badge.y).toBeGreaterThanOrEqual(board.y);
   expect((await end.boundingBox())!.y).toBeGreaterThan(badge.y + badge.height);
-  await expect(page.locator(".locations button").nth(2)).toBeDisabled();
+  const unchanged = await readGame(page);
+  await tapNode(page, 2);
+  expect(await readGame(page)).toEqual(unchanged);
   await page.screenshot({
     path: testInfo.outputPath("remaining-movement-mobile.png"),
     fullPage: true,
@@ -348,22 +358,20 @@ test("large road tap targets pick the intended edge; Army selections and mobile 
   ];
   army.nextId = 3;
   await resumeGame(page, army);
-  await expect(page.locator(".locations button").nth(1)).toBeEnabled();
-  await expect(page.locator(".locations button").nth(2)).toBeDisabled();
-  await page.locator(".locations button").nth(1).click();
-  await expect(page.locator(".locations button").nth(2)).toBeEnabled();
+  await expect(page.locator("aside button")).toHaveCount(0);
+  const unchanged = await readGame(page);
+  await tapNode(page, 2);
+  expect(await readGame(page)).toEqual(unchanged);
+  await tapNode(page, 1);
+
   await page.screenshot({
     path: testInfo.outputPath("mobile-army-targets.png"),
     fullPage: true,
   });
-  await page.locator(".locations button").nth(2).click();
-  expect(
-    await page.evaluate(() =>
-      JSON.parse(localStorage.getItem("kings-road.game.v1")!).units.every(
-        (u: { node: number }) => u.node === 2,
-      ),
-    ),
-  ).toBe(true);
+  await tapNode(page, 2);
+  await expect
+    .poll(async () => (await readGame(page)).units.every((u) => u.node === 2))
+    .toBe(true);
   await expect(page.locator(".table-area .roll-button")).toBeVisible();
   expect(
     await page.evaluate(
