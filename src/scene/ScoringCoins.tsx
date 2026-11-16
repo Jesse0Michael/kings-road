@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { Game, runnerCanScore } from "../game/engine";
-import { nodeSelectable, positions } from "./boardLayout";
+import { Game } from "../game/engine";
+import { nodeSelectable } from "./boardLayout";
+import { samplePiece, type Piece } from "./motion";
 
 // Two lightly engraved faces: a crown on the obverse, five roads on the reverse.
 function coinFace(tails: boolean) {
@@ -65,31 +66,59 @@ function coinFace(tails: boolean) {
 }
 
 function Coin({
-  node,
+  piece,
   faces,
   reduced,
   onClick,
+  onDone,
 }: {
-  node: number;
+  piece: Piece;
   faces: THREE.CanvasTexture[];
   reduced: boolean;
   onClick: () => void;
+  onDone: (p: Piece) => void;
 }) {
   const ref = useRef<THREE.Group>(null);
-  const [x, z] = positions[node];
+  const done = useRef(false);
+  const node = piece.node;
+  useLayoutEffect(() => {
+    done.current = false;
+  }, [piece.steps]);
   useFrame(({ clock }) => {
     if (!ref.current) return;
     const t = reduced ? 0 : clock.elapsedTime;
-    ref.current.position.y =
-      1.25 + (reduced ? 0 : Math.sin(t * 1.8 + node) * 0.055);
+    const pose = samplePiece(piece, reduced ? Infinity : performance.now());
+    ref.current.position.fromArray(pose.position);
+    ref.current.position.y += reduced ? 0 : Math.sin(t * 1.8 + node) * 0.055;
     ref.current.rotation.set(-0.18, reduced ? 0.15 : t * 0.95 + node * 0.42, 0);
+    ref.current.scale.setScalar(pose.scale);
+    ref.current.visible = pose.opacity > 0;
+    ref.current.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const materials = Array.isArray(object.material)
+        ? object.material
+        : [object.material];
+      materials.forEach((material) => {
+        material.transparent = true;
+        material.depthWrite = pose.opacity === 1;
+        material.opacity = pose.opacity;
+      });
+    });
+    if (piece.gone && pose.done && !done.current) {
+      done.current = true;
+      onDone(piece);
+    }
   });
   return (
     <group
       ref={ref}
       name={`scoring-coin-${node}`}
-      position={[x, 1.25, z]}
+      position={piece.at}
+      visible={
+        samplePiece(piece, reduced ? Infinity : performance.now()).opacity > 0
+      }
       onClick={(e) => {
+        if (piece.gone || !ref.current?.visible) return;
         e.stopPropagation();
         onClick();
       }}
@@ -134,35 +163,29 @@ function Coin({
 
 export function ScoringCoins({
   game,
+  coins,
+  reduced,
   onNode,
+  onDone,
 }: {
   game: Game;
+  coins: Piece[];
+  reduced: boolean;
   onNode: (n: number) => void;
+  onDone: (p: Piece) => void;
 }) {
   const faces = useMemo(() => [coinFace(false), coinFace(true)], []);
-  const [reduced, setReduced] = useState(
-    () => matchMedia("(prefers-reduced-motion: reduce)").matches,
-  );
-  useEffect(() => {
-    const media = matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setReduced(media.matches);
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
-  }, []);
   useEffect(() => () => faces.forEach((face) => face.dispose()), [faces]);
-  if (game.winner || game.turn !== "Runner") return null;
-  return positions.map(
-    (_, node) =>
-      runnerCanScore(game, node) && (
-        <Coin
-          key={node}
-          node={node}
-          faces={faces}
-          reduced={reduced}
-          onClick={() => {
-            if (nodeSelectable(game, node, null)) onNode(node);
-          }}
-        />
-      ),
-  );
+  return coins.map((piece) => (
+    <Coin
+      key={piece.uid}
+      piece={piece}
+      faces={faces}
+      reduced={reduced}
+      onDone={onDone}
+      onClick={() => {
+        if (nodeSelectable(game, piece.node, null)) onNode(piece.node);
+      }}
+    />
+  ));
 }

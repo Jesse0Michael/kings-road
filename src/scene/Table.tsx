@@ -4,7 +4,6 @@ import { Canvas, useLoader } from "@react-three/fiber";
 import * as THREE from "three";
 import { Game, roads } from "../game/engine";
 import { AnimatedPieces } from "./AnimatedPieces";
-import { ScoringCoins } from "./ScoringCoins";
 import type { Transition } from "./motion";
 import { Dice, roleColors } from "./Dice";
 import type { DiceRoll } from "./Dice";
@@ -203,7 +202,6 @@ function Scene({
         onNode={onNode}
         onRoad={onRoad}
       />
-      <ScoringCoins game={game} onNode={onNode} />
       <Dice roll={diceRoll ?? null} />
     </>
   );

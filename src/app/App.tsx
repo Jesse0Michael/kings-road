@@ -89,6 +89,10 @@ export default function App() {
   const busy = useRef(false);
   const g = game;
   const human = g?.human === g?.turn;
+  const remaining =
+    g?.phase === "move"
+      ? g.units.filter((u) => !g.moved.includes(u.id)).length
+      : (g?.budget ?? 0);
   const [reduced] = useState(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
@@ -298,41 +302,52 @@ export default function App() {
               diceRoll={diceRoll}
               transitions={transitions}
             />
-            {!g.winner && ["build", "deploy", "run"].includes(g.phase) && (
-              <div
-                className="table-controls"
-                style={{ "--role": colors[g.turn] } as React.CSSProperties}
-              >
+            {!g.winner &&
+              ["build", "deploy", "run", "move"].includes(g.phase) && (
                 <div
-                  className="remaining-actions"
-                  role="status"
-                  aria-label={`${g.turn} remaining actions`}
-                  aria-live={human ? "polite" : "off"}
-                  aria-atomic="true"
+                  className="table-controls"
+                  style={{ "--role": colors[g.turn] } as React.CSSProperties}
                 >
-                  <b>{g.budget}</b>
-                  <div>
-                    <small>{g.turn}</small>
-                    <span>
-                      {g.phase === "build"
-                        ? `${g.budget === 1 ? "Wall" : "Walls"} left`
-                        : g.phase === "deploy"
-                          ? `${g.budget === 1 ? "Soldier" : "Soldiers"} left`
-                          : "Movement points left"}
-                    </span>
-                  </div>
-                </div>
-                {human && g.phase === "run" && (
-                  <button
-                    className="table-end"
-                    disabled={rolling}
-                    onClick={() => dispatch({ type: "end" })}
+                  <div
+                    className="remaining-actions"
+                    role="status"
+                    aria-label={`${g.turn} remaining actions`}
+                    aria-live={human ? "polite" : "off"}
+                    aria-atomic="true"
                   >
-                    End movement <span aria-hidden="true">→</span>
-                  </button>
-                )}
-              </div>
-            )}
+                    <b>{remaining}</b>
+                    <div>
+                      <small>{g.turn}</small>
+                      <span>
+                        {g.phase === "build"
+                          ? `${g.budget === 1 ? "Wall" : "Walls"} left`
+                          : g.phase === "deploy"
+                            ? `${g.budget === 1 ? "Soldier" : "Soldiers"} left`
+                            : g.phase === "move"
+                              ? `${remaining === 1 ? "Soldier" : "Soldiers"} ready`
+                              : "Movement points left"}
+                      </span>
+                    </div>
+                  </div>
+                  {human && (g.phase === "run" || g.phase === "move") && (
+                    <button
+                      className="table-end"
+                      disabled={rolling}
+                      onClick={() => {
+                        dispatch({ type: "end" });
+                        setSelected(null);
+                      }}
+                    >
+                      <span>
+                        {g.phase === "move"
+                          ? "Hold remaining soldiers"
+                          : "End movement"}
+                      </span>
+                      <span aria-hidden="true">→</span>
+                    </button>
+                  )}
+                </div>
+              )}
             {!g.winner && human && g.phase === "roll" && (
               <button
                 className="roll-button board-roll"
@@ -385,18 +400,6 @@ export default function App() {
                   ))}
                   <small>{g.dice.reduce((a, b) => a + b, 0)} total</small>
                 </div>
-              )}
-              {!g.winner && human && g.phase === "move" && (
-                <button
-                  className="secondary"
-                  disabled={rolling}
-                  onClick={() => {
-                    dispatch({ type: "end" });
-                    setSelected(null);
-                  }}
-                >
-                  Hold remaining soldiers →
-                </button>
               )}
               {g.winner && (
                 <button className="primary" onClick={() => setScreen("home")}>

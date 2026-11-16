@@ -842,17 +842,20 @@ aside {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   min-height: 44px;
   padding: 10px 14px;
   border: 1px solid color-mix(in srgb, var(--role) 65%, #624a35);
   border-radius: 4px;
-  background: #26322bf5;
+  background: color-mix(in srgb, var(--role) 18%, #261b15);
   color: #f3dfb3;
   box-shadow: 0 3px 12px #0005;
   font-size: 12px;
+  line-height: 1.35;
+  text-align: left;
 }
 .table-end:hover:not(:disabled) {
-  background: #344b40;
+  background: color-mix(in srgb, var(--role) 30%, #261b15);
 }
 .table-end:focus-visible {
   outline: 2px solid #f3dfb3;

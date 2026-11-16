@@ -1,8 +1,9 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { Game } from "../game/engine";
 import { Runner, Soldier, StoneWall } from "./Pieces";
+import { ScoringCoins } from "./ScoringCoins";
 import {
   Piece,
   Transition,
@@ -146,7 +147,12 @@ function AnimatedPiece({
   });
   const initial = samplePiece(piece, performance.now());
   return (
-    <group ref={ref} position={initial.position} rotation={initial.rotation}>
+    <group
+      name={piece.id}
+      ref={ref}
+      position={initial.position}
+      rotation={initial.rotation}
+    >
       {piece.kind === "wall" ? (
         <>
           <group ref={intact}>
@@ -191,9 +197,15 @@ export function AnimatedPieces({
   const [pieces, setPieces] = useState(() => reconcilePieces([], game));
   const previous = useRef(game),
     last = useRef(transitions.at(-1)?.id ?? 0);
-  const [reduced] = useState(
+  const [reduced, setReduced] = useState(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
+  useEffect(() => {
+    const media = matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduced(media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
   useLayoutEffect(() => {
     if (previous.current === game) return;
     const pending = transitions.filter(
@@ -226,16 +238,25 @@ export function AnimatedPieces({
   }
   return (
     <>
-      {pieces.map((piece) => (
-        <AnimatedPiece
-          key={piece.uid}
-          piece={piece}
-          onNode={onNode}
-          onRoad={onRoad}
-          onDone={complete}
-          reduced={reduced}
-        />
-      ))}
+      {pieces
+        .filter((p) => p.kind !== "coin")
+        .map((piece) => (
+          <AnimatedPiece
+            key={piece.uid}
+            piece={piece}
+            onNode={onNode}
+            onRoad={onRoad}
+            onDone={complete}
+            reduced={reduced}
+          />
+        ))}
+      <ScoringCoins
+        game={game}
+        coins={pieces.filter((p) => p.kind === "coin")}
+        reduced={reduced}
+        onNode={onNode}
+        onDone={complete}
+      />
     </>
   );
 }

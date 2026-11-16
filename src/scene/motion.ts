@@ -1,4 +1,4 @@
-import { Game, roads } from "../game/engine";
+import { Game, roads, runnerCanScore } from "../game/engine";
 import { positions } from "./boardLayout";
 export { positions } from "./boardLayout";
 export type Point = [number, number, number];
@@ -13,18 +13,22 @@ export type Step = {
 export type Piece = {
   uid: number;
   id: string;
-  kind: "soldier" | "wall" | "runner";
+  kind: "soldier" | "wall" | "runner" | "coin";
   node: number;
   slot: number;
   at: Point;
   yaw: number;
   steps: Step[];
+  showAt?: number;
   gone?: boolean;
 };
 export type Transition = { id: number; before: Game; after: Game; at: number };
 export const MOTION_MS = 720,
   PLACE_MS = 600,
-  REMOVE_MS = 430;
+  REMOVE_MS = 430,
+  COIN_COLLECT_MS = 180;
+// Movement reaches the destination and finishes lowering at 90% of its path.
+export const landingTime = (step: Step) => step.start + step.duration * 0.9;
 export const endTime = (p: Piece) =>
   p.steps.length
     ? p.steps[p.steps.length - 1].start + p.steps[p.steps.length - 1].duration
@@ -71,11 +75,12 @@ export function reconcilePieces(
     slot: number,
     at: Point,
     yaw = 0,
+    showAt?: number,
   ) => {
     const was = live.find((p) => p.id === id),
       changed = was && was.at.some((v, i) => Math.abs(v - at[i]) > 0.001);
     const steps = was ? [...was.steps] : [];
-    if (!initial && (!was || changed))
+    if (!initial && kind !== "coin" && (!was || changed))
       steps.push({
         kind: was ? "move" : "place",
         from: was?.at ?? at,
@@ -92,6 +97,7 @@ export function reconcilePieces(
       at,
       yaw,
       steps,
+      ...(kind === "coin" ? { showAt: was?.showAt ?? showAt ?? 0 } : {}),
     });
   };
   const used = new Map<number, Set<number>>();
@@ -125,12 +131,46 @@ export function reconcilePieces(
   const runner = result.find((p) => p.id === "runner")!;
   const runnerMove = previous?.runner !== g.runner;
   const runnerStep = runner.steps.at(-1);
+  if (g.turn === "Runner" && !g.winner) {
+    // A following turn can begin before the previous turn's visual path is done.
+    const showAt = initial
+      ? 0
+      : Math.max(
+          now,
+          endTime(runner),
+          ...old.filter((p) => p.kind === "coin" && p.gone).map(endTime),
+        );
+    positions.forEach(([x, z], node) => {
+      if (runnerCanScore(g, node))
+        add(
+          `coin-${g.round}-${node}`,
+          "coin",
+          node,
+          0,
+          [x, 1.25, z],
+          0,
+          showAt,
+        );
+    });
+  }
   const march = previous?.turn === "Army" && previous.phase === "move";
   for (const was of live) {
     if (result.some((p) => !p.gone && p.id === was.id)) continue;
     const steps = [...was.steps];
     let start = Math.max(now, endTime(was));
     let at = was.at;
+    if (was.kind === "coin") {
+      const collected =
+        runnerMove &&
+        was.node === g.runner &&
+        g.scores.Runner > (previous?.scores.Runner ?? g.scores.Runner);
+      // Collected coins follow their own arrival; uncollected coins wait for the
+      // last queued move before clearing at turn end, early stop, or victory.
+      start = Math.max(
+        start,
+        collected && runnerStep ? landingTime(runnerStep) : endTime(runner),
+      );
+    }
     if (was.kind === "soldier" && march) {
       const road = roads.findIndex(
         ([a, b], i) =>
@@ -169,7 +209,7 @@ export function reconcilePieces(
       from: at,
       to: at,
       start,
-      duration: REMOVE_MS,
+      duration: was.kind === "coin" ? COIN_COLLECT_MS : REMOVE_MS,
     });
     result.push({ ...was, at, steps, gone: true });
   }
@@ -182,14 +222,14 @@ const smooth = (v: number) => {
 export function samplePiece(piece: Piece, now: number) {
   const step =
     piece.steps.find((s) => now < s.start + s.duration) ?? piece.steps.at(-1);
-  if (!step)
+  if (!step || now < (piece.showAt ?? 0))
     return {
       position: piece.at,
       rotation: [0, piece.yaw, 0] as Point,
-      opacity: 1,
+      opacity: now < (piece.showAt ?? 0) ? 0 : 1,
       scale: 1,
       breaking: 0,
-      done: true,
+      done: now >= (piece.showAt ?? 0),
     };
   const t = Math.max(0, Math.min(1, (now - step.start) / step.duration));
   let position = [...step.from] as Point,
@@ -219,10 +259,16 @@ export function samplePiece(piece: Piece, now: number) {
       Math.sin(t * 13) * 0.055 * (t < 0.75 ? 1 : Math.exp(-(t - 0.75) * 10));
   }
   if (step.kind === "remove") {
-    opacity = 1 - smooth((t - 0.2) / 0.8);
-    scale = 1 - t * 0.15;
-    rock = t * 1.25;
-    position[1] -= t * 0.09;
+    if (piece.kind === "coin") {
+      opacity = 1 - smooth(t);
+      scale = 1 - smooth(t) * 0.25;
+      position[1] += smooth(t) * 0.12;
+    } else {
+      opacity = 1 - smooth((t - 0.2) / 0.8);
+      scale = 1 - t * 0.15;
+      rock = t * 1.25;
+      position[1] -= t * 0.09;
+    }
   }
   if (t === 1 && step.kind !== "remove") {
     position = step.to;

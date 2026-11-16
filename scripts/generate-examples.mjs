@@ -9,6 +9,14 @@ import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const out = resolve(root, "public/assets/examples");
+const roles =
+  process.argv.length > 2
+    ? process.argv.slice(2)
+    : ["Builder", "Army", "Runner"];
+if (roles.some((role) => !["Builder", "Army", "Runner"].includes(role)))
+  throw new Error(
+    "Choose Builder, Army, or Runner to regenerate a single clip.",
+  );
 await mkdir(out, { recursive: true });
 const server = await createServer({
   root,
@@ -26,7 +34,7 @@ const browser = await chromium.launch({
   ],
 });
 try {
-  for (const role of ["Builder", "Army", "Runner"]) {
+  for (const role of roles) {
     const page = await browser.newPage({
       viewport: { width: 720, height: 540 },
       deviceScaleFactor: 1,

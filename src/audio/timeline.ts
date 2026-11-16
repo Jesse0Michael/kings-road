@@ -1,5 +1,5 @@
 import type { Game } from "../game/engine";
-import { endTime, reconcilePieces } from "../scene/motion";
+import { endTime, landingTime, reconcilePieces } from "../scene/motion";
 import type { Piece, Transition } from "../scene/motion";
 
 export const soundNames = [
@@ -49,6 +49,7 @@ export class SoundTimeline {
     let fall = t.at;
     let castle = t.at;
     for (const p of this.pieces) {
+      if (p.kind === "coin") continue;
       const previous = old.find((v) => v.uid === p.uid);
       const fresh = p.steps.slice(previous?.steps.length ?? 0);
       for (const step of fresh) {
@@ -65,7 +66,7 @@ export class SoundTimeline {
             p.at[0],
             reduced ? 0.6 : 0,
           );
-          const landing = step.start + step.duration * 0.9;
+          const landing = landingTime(step);
           if (p.kind === "runner") arrival = landing;
           if (
             p.kind === "soldier" &&

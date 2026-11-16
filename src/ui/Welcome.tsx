@@ -250,8 +250,10 @@ export function HowToPlay({
           <p>
             The Runner’s starting location is excluded for the whole turn. Each
             other location has one silver coin, worth one point on your first
-            visit. A collected coin stays gone until your next turn. Colored
-            rings show which moves you can afford right now.
+            visit. Its coin disappears when the traveler arrives; unvisited
+            coins stay until the turn ends. A collected coin stays gone until
+            your next turn. Colored rings show which moves you can afford right
+            now.
           </p>
           <p>
             <strong>I → II → I → II earns just 1 point.</strong> II scores once.
@@ -277,8 +279,11 @@ export function HowToPlay({
           <h2>Make yourself at home.</h2>
           <p>
             Tap roads to build. Tap a group and its destination to march. Tap
-            locations to deploy or explore. The labeled controls beside the
-            board offer the same actions.
+            locations to deploy or explore.{" "}
+            <strong>Hold remaining soldiers</strong> and{" "}
+            <strong>End movement</strong> sit beneath your counter on the table.
+            The labeled controls beside the board also let you place and move
+            pieces.
           </p>
           <p>
             Your game saves automatically. Use Continue to come back; completed
