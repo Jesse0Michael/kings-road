@@ -191,14 +191,17 @@ test("Runner scores a destination once per turn through the actual controls", as
   const state = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("kings-road.game.v1")!),
   );
-  expect(state.scores.Runner).toBe(2);
-  expect(state.scored).toEqual([1, 0]);
+  expect(state.scores.Runner).toBe(1);
+  expect(state.scored).toEqual([1]);
   await expect(page.locator(".journal")).toContainText(
     "Runner explored location II.",
   );
   await expect(
     page.getByLabel("Game scores").locator(".score").nth(2),
-  ).toContainText("2");
+  ).toContainText("1");
+  await expect(page.locator(".locations button").nth(0)).not.toContainText(
+    "+1",
+  );
 });
 
 test("rapid placements remain enabled while pieces animate", async ({
@@ -211,7 +214,9 @@ test("rapid placements remain enabled while pieces animate", async ({
   g.budget = 5;
   await resumeGame(page, g);
   await page.clock.install();
-  await page.clock.pauseAt(new Date());
+  await page.clock.pauseAt(
+    new Date(await page.evaluate(() => Date.now() + 1000)),
+  );
   await page.locator(".roads button").first().click();
   await expect(page.locator(".roads button").first()).toBeEnabled();
   await page.locator(".roads button").first().click();
@@ -277,17 +282,21 @@ test("Runner allowance counts walls and captures, persists, and remains visible 
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(counter).toBeInViewport();
+  const end = page.getByRole("button", { name: "End movement" });
+  await expect(end).toBeInViewport();
+  expect(await end.evaluate((e) => !!e.closest(".table-controls"))).toBe(true);
   const board = (await page.locator("canvas").boundingBox())!;
   const badge = (await counter.boundingBox())!;
   expect(badge.x).toBeGreaterThan(board.x + board.width / 2);
   expect(badge.x + badge.width).toBeLessThanOrEqual(board.x + board.width);
   expect(badge.y).toBeGreaterThanOrEqual(board.y);
+  expect((await end.boundingBox())!.y).toBeGreaterThan(badge.y + badge.height);
   await expect(page.locator(".locations button").nth(2)).toBeDisabled();
   await page.screenshot({
     path: testInfo.outputPath("remaining-movement-mobile.png"),
     fullPage: true,
   });
-  await page.locator(".locations button").nth(0).click();
+  await end.click();
   await expect(counter).toHaveCount(0);
 });
 

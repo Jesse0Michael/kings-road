@@ -4,6 +4,7 @@ import { Canvas, useLoader } from "@react-three/fiber";
 import * as THREE from "three";
 import { Game, roads } from "../game/engine";
 import { AnimatedPieces } from "./AnimatedPieces";
+import { ScoringCoins } from "./ScoringCoins";
 import type { Transition } from "./motion";
 import { Dice, roleColors } from "./Dice";
 import type { DiceRoll } from "./Dice";
@@ -23,6 +24,7 @@ export type TableProps = {
   selected: number | null;
   transitions?: Transition[];
   diceRoll?: DiceRoll | null;
+  example?: boolean;
 };
 function boardTop() {
   const points: number[] = [],
@@ -201,6 +203,7 @@ function Scene({
         onNode={onNode}
         onRoad={onRoad}
       />
+      <ScoringCoins game={game} onNode={onNode} />
       <Dice roll={diceRoll ?? null} />
     </>
   );
@@ -232,7 +235,7 @@ export function Table(props: TableProps) {
     <SceneBoundary>
       <Canvas
         shadows
-        camera={{ position: [0, 8.8, 9.1], fov: 42 }}
+        camera={{ position: [0, 8.8, 9.1], fov: props.example ? 36 : 42 }}
         dpr={[1, 1.6]}
         onCreated={({ camera }) => camera.lookAt(0, 0, 0.15)}
       >

@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { createGame } from "../game/engine";
+import { act, createGame, runnerCanScore } from "../game/engine";
 import { history, loadGame, save, validGame } from "./index";
 beforeEach(() => {
   const data = new Map<string, string>();
@@ -29,4 +29,17 @@ it("recovers from corrupt or incompatible storage", () => {
   const g = createGame("Runner");
   g.walls[0] = -1;
   expect(validGame(g)).toBe(false);
+});
+it("resuming preserves the excluded Runner start and collected coins", () => {
+  let g = createGame("Runner", 99);
+  g.turn = "Runner";
+  g.phase = "run";
+  g.budget = 8;
+  g = act(g, { type: "run", node: 1 });
+  save(g);
+  const restored = loadGame()!;
+  expect(runnerCanScore(restored, 0)).toBe(false);
+  expect(runnerCanScore(restored, 1)).toBe(false);
+  expect(runnerCanScore(restored, 2)).toBe(true);
+  expect(act(restored, { type: "run", node: 0 }).scores.Runner).toBe(1);
 });

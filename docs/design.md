@@ -6,6 +6,10 @@ A static, browser-only game: one human chooses any role and plays against two co
 
 After a roll, a role-colored counter in the upper-right corner of the tabletop shows walls left to build, soldiers left to deploy, or movement points left. It uses the current action budget and updates without waiting for piece animations. The counter also shows computer turns and stays on the table at mobile sizes; it is hidden before rolling, during Army movement, and after victory.
 
+The Runner's End movement control lives directly beneath its counter, so it remains in the board view on mobile. During Runner turns, silver coins with a crown and a five-road reverse rotate above locations that can still score. `runnerCanScore` drives these coins, the labeled +1 destinations, scoring, and AI preferences. The starting location has no coin; visited locations lose theirs. Colored rings still indicate affordable connected moves. Reduced motion keeps the coins still.
+
+The landing page pairs role selection with a gameplay preview. How to play uses three small, silent MP4 examples of the real renderer and rules engine, followed by movement costs and capacity clarifications. Clips use static JPEG posters for reduced motion, have pause/play controls, and pause when offscreen or when the document is hidden. The development-only capture stage and generator are under `scripts/`; only compressed videos and posters ship. No extra WebGL contexts run on the learning pages.
+
 ## Art direction and input
 
 The carved tabletop uses a semi-realistic timber table texture and a quieter continuous wood texture on the pentagonal board. Both are generated, bundled WebP assets. Canvas-drawn engravings and a matching bump map add the roads, Roman numerals I–V, borders, and central castle emblem directly to the board surface. The castle is part of the board; node labels and soldier counts do not float over the scene.
@@ -25,7 +29,7 @@ Author confirmations supersede the relevant wording in the [original rules](rule
 - Deployments cannot use the Runner’s node. If every eligible placement is full, leftover reinforcements or construction are discarded. Older over-cap saves are not trimmed; additions wait until below the cap.
 - The Runner may end movement early. A blocked crossing costs two movement points per wall, including the crossing. It must clear every wall to cross; partial destruction is unavailable.
 - Entering an occupied location costs one extra movement point and removes exactly one soldier, with no Builder point. Crossing an open road into soldiers therefore costs two points; one wall plus soldiers costs three, and two walls plus soldiers costs five. The surcharge applies once per entry, regardless of group size, and disappears when the last soldier is gone. The Runner must afford the full crossing and capture before moving. Human controls, board highlights, and computer choices share this calculation.
-- The Runner scores once per unique location **entered during that turn**. Starting on a location gives no point, but leaving and returning earns one. Repeated visits earn nothing further that turn. Visiting all six never resets scoring mid-turn. Eligibility resets at the next Runner turn; total scores accumulate.
+- The Runner scores once per new location **entered during that turn**, excluding the location where that turn began. Leaving and returning to the start earns no point. Repeated visits earn nothing further that turn. Visiting all six never resets scoring mid-turn. At most five locations can score per turn. Eligibility resets at the next Runner turn; total scores accumulate.
 - Victory is immediate at 15, including Builder points earned during an Army turn.
 - The Builder spends all purchased walls and the Army deploys all placeable reinforcements. Only Army movement and Runner movement have an optional early end.
 
@@ -33,13 +37,13 @@ Author confirmations supersede the relevant wording in the [original rules](rule
 
 Version 1 stores the complete serializable game state: random seed, turn phase, budget, individual soldiers and movement eligibility, visited/scored nodes, scores, and recent event log. Only committed actions are saved. Reloading during a dice animation restores the state before that roll, and rolling again yields the same result. Reloading during piece motion restores the latest game state with pieces at rest.
 
-`visited` records physical visits, including the turn’s starting location. `scored` records locations that actually earned a point and starts empty. This distinction allows the starting location to score on its first return. Old saves retain their current turn’s scoring history until the next Runner turn.
+`visited` records physical visits, including the turn’s starting location, and excludes them from scoring. `scored` records locations that actually earned a point and starts empty. Both sets guard eligibility, including on resumed saves. Existing cumulative scores are retained; the starting location and all previously visited locations remain ineligible for subsequent actions under the current rule.
 
 Browser localStorage keeps one active game and the latest 100 completed results. Save failures explain that progress will last only while the tab stays open. Saved state is shape-validated on load; unsupported or corrupt saved games are ignored on startup. Players resume through Continue. Starting a new game replaces the active save; there is no manual file import/export.
 
 ## Computer players
 
-The Builder prioritizes pressured castle approaches, with diminishing value for stacking walls on a single road. The Army prefers the castle and seeks lower-wall alternatives when heavily blocked. The Runner favors affordable destinations it has not scored this turn. These baseline strategies use public information and the same validated actions as the human.
+The Builder prioritizes pressured castle approaches, with diminishing value for stacking walls on a single road. The Army prefers the castle and seeks lower-wall alternatives when heavily blocked. The Runner favors affordable destinations that can still score, with lower movement costs breaking ties. The excluded starting location offers no scoring preference but remains a legal route to other locations. These baseline strategies use public information and the same validated actions as the human.
 
 Computer actions are spaced by 210 ms normally or 100 ms in fast mode. They do not wait for placement or movement to settle. Dice finish before their budget becomes available; fast mode shortens computer rolls.
 

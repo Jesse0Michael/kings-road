@@ -34,11 +34,17 @@ Choose a role; the other two become computer rivals. Turns run **Builder → Arm
 | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | Builder | 3d4  | Spend each pair of rolled points on a wall. Tap a highlighted road or an existing wall; each road holds five.                                                        | One point per soldier sacrificed against a wall.                                                                |
 | Army    | 2d6  | Move ready soldiers as a group to an adjacent location, or hold them. Then roll and deploy, up to five soldiers per perimeter node, excluding the Runner’s location. | One point per soldier reaching the castle.                                                                      |
-| Runner  | 1d8  | Spend movement on connected roads, removing walls and one soldier at each occupied destination. End movement whenever you like.                                      | One point per unique location entered that turn. Starting there gives no point; returning there can score once. |
+| Runner  | 1d8  | Spend movement on connected roads, removing walls and one soldier at each occupied destination. End movement whenever you like.                                      | One point per new location that turn. The starting location never scores, including on a return. |
 
 Army soldiers that cannot fit at their destination stay ready at the origin and can try another road. A blocked crossing sacrifices one soldier per wall; surviving soldiers cross if there is room. An open road costs the Runner one movement point; a walled road costs two per wall, including the crossing. Entering a node with soldiers costs one extra movement point and removes exactly one soldier: two points across an open road, three across one wall, or five across two walls. The extra cost does not increase with the number of soldiers. Repeated Runner visits never score again in the same turn, even after all six locations have been visited.
 
 The **Roll** button appears on the table in your role’s color when you can roll. After rolling, a counter in the table’s upper-right corner shows the active role’s remaining walls, soldiers to deploy, or movement points. It updates immediately as actions are taken, including on mobile. Army destinations and buildable roads light up when selectable. Roads have generous tap regions; existing walls are also clickable. The labeled controls beside the board provide the same actions.
+
+The Runner’s **End movement** button sits directly beneath that counter. Rotating silver coins mark locations that can still award a point this turn; your starting location has no coin. Visiting a new location removes its coin. Coins reset on the next Runner turn, excluding its new starting location. Coins indicate points still available; colored node rings indicate moves you can afford now. Returning through a visited location is legal but earns nothing.
+
+The landing page previews your selected role. **How to play** includes three short, silent loops captured from the game, simple scoring explanations, and Runner movement-cost examples. Each clip has a pause button, pauses offscreen or in a hidden tab, and starts as a still image when reduced motion is enabled.
+
+Preview the [welcome screen](docs/screenshots/welcome.png) and [visual rules](docs/screenshots/how-to-play.png).
 
 Pieces drop, lift, glide, and settle without locking your next action. Computer placements overlap with a short stagger. Runner captures wait for the traveler to arrive. **Settings → Fast computer turns** shortens computer pauses and rolls; the app also respects your system’s reduced-motion preference.
 
@@ -72,6 +78,7 @@ src/
   main.tsx               # Entry point and locally bundled fonts
 public/assets/textures/  # Bundled table and board wood textures
 public/assets/audio/     # Web music copy and original short sound effects
+public/assets/examples/  # Silent gameplay clips and reduced-motion posters
 public/icons/            # Carved Seal favicons, touch and home-screen icons
 public/site.webmanifest  # Application identity and home-screen launch settings
 assets/audio-source/     # Original song, excluded from the web build
@@ -97,6 +104,8 @@ To regenerate the committed dice recordings, use Node **22.18 or newer**, run `n
 Audio assets are also committed. Optional regeneration: `npm run sfx:generate` needs Python 3; `npm run music:prepare` additionally needs FFmpeg/ffprobe. See [audio credits and details](public/assets/audio/README.md).
 
 **Carved Seal** is the selected icon for browser tabs, bookmarks, and home screens. The committed set covers ICO/PNG favicons, Apple touch icons, and Android regular/maskable icons. `npm run icons:generate` regenerates them from the [approved master](assets/brand/README.md) using ImageMagick 7. The web manifest supports a standalone home-screen launch; it does not add offline caching. [Original icon concepts and an effects preview](docs/mockups/README.md) remain available.
+
+`npm run examples:generate` regenerates the tutorial clips using Playwright/Chromium and FFmpeg. It captures the same rules, models, and motion as the game at fixed frame intervals. The capture stage stays outside the production entry point. See [clip details](public/assets/examples/README.md).
 
 ## GitHub Pages deployment
 

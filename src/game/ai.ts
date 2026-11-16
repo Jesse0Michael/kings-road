@@ -8,6 +8,7 @@ import {
   roadBetween,
   roads,
   runCost,
+  runnerCanScore,
 } from "./engine";
 
 export function aiAction(g: Game): Action {
@@ -60,7 +61,7 @@ export function aiAction(g: Game): Action {
     .filter((n) => runCost(g, n) <= g.budget)
     .sort(
       (a, b) =>
-        Number(g.scored.includes(a)) - Number(g.scored.includes(b)) ||
+        Number(runnerCanScore(g, b)) - Number(runnerCanScore(g, a)) ||
         runCost(g, a) - runCost(g, b),
     );
   return choices.length ? { type: "run", node: choices[0] } : { type: "end" };

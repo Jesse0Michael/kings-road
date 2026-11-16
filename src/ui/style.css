@@ -817,11 +817,16 @@ aside {
 }
 
 /* Keep the rolled allowance in view beside the board on desktop and mobile. */
-.remaining-actions {
+.table-controls {
   position: absolute;
-  z-index: 2;
+  z-index: 3;
   top: 132px;
   right: 25px;
+  width: 190px;
+  display: grid;
+  gap: 6px;
+}
+.remaining-actions {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -832,6 +837,26 @@ aside {
   background: #261b15f5;
   box-shadow: 0 3px 12px #0005;
   pointer-events: none;
+}
+.table-end {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--role) 65%, #624a35);
+  border-radius: 4px;
+  background: #26322bf5;
+  color: #f3dfb3;
+  box-shadow: 0 3px 12px #0005;
+  font-size: 12px;
+}
+.table-end:hover:not(:disabled) {
+  background: #344b40;
+}
+.table-end:focus-visible {
+  outline: 2px solid #f3dfb3;
+  outline-offset: 3px;
 }
 .remaining-actions > b {
   color: color-mix(in srgb, var(--role) 80%, #f3dfb3);
@@ -855,10 +880,12 @@ aside {
   line-height: 1.4;
 }
 @media (max-width: 750px) {
-  .remaining-actions {
+  .table-controls {
     top: 115px;
     right: 15px;
-    max-width: 165px;
+    width: 165px;
+  }
+  .remaining-actions {
     gap: 10px;
     padding: 9px 12px;
   }

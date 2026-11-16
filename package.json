@@ -13,6 +13,7 @@
     "sfx:generate": "python3 scripts/generate-sfx.py",
     "music:prepare": "python3 scripts/prepare-music.py",
     "icons:generate": "node scripts/generate-icons.mjs",
+    "examples:generate": "node scripts/generate-examples.mjs",
     "format": "prettier --write src tests scripts *.ts *.json *.html docs/*.md public/assets/textures/*.md README.md"
   },
   "dependencies": {

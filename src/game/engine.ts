@@ -67,6 +67,10 @@ export const roadBetween = (a: number, b: number) =>
   roads.findIndex(([x, y]) => (x === a && y === b) || (x === b && y === a));
 export const neighbors = (n: number) =>
   roads.flatMap(([a, b]) => (a === n ? [b] : b === n ? [a] : []));
+// The starting location is already visited when the Runner's turn begins.
+// Keep scored as a second guard for saves from earlier playtest rules.
+export const runnerCanScore = (g: Game, n: number) =>
+  !g.visited.includes(n) && !g.scored.includes(n);
 export const runCost = (g: Game, n: number) => {
   const r = roadBetween(g.runner, n);
   if (r < 0) return Infinity;
@@ -205,7 +209,7 @@ export function act(state: Game, a: Action): Game {
       g.units = g.units.filter((u) => u.id !== victim.id);
       note(g, "Runner removed one soldier.");
     }
-    if (!g.scored.includes(a.node)) {
+    if (runnerCanScore(g, a.node)) {
       g.scored.push(a.node);
       point(g, "Runner");
       note(

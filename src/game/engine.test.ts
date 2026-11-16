@@ -1,6 +1,13 @@
 import { aiAction } from "./ai";
 import { describe, it, expect } from "vitest";
-import { act, createGame, roads, runCost } from "./engine";
+import {
+  act,
+  createGame,
+  roads,
+  runCost,
+  runnerCanScore,
+  neighbors,
+} from "./engine";
 describe("King’s Road", () => {
   it("has five perimeter roads and five spokes", () =>
     expect(roads).toHaveLength(10));
@@ -84,7 +91,7 @@ describe("King’s Road", () => {
     expect(runCost(g, 1)).toBe(1);
     g = act(g, { type: "run", node: 1 });
     expect(g.budget).toBe(4);
-    expect(g.scores.Runner).toBe(2);
+    expect(g.scores.Runner).toBe(1);
   });
   it("computer Runners choose affordable routes and stop when soldiers block the last point", () => {
     const g = createGame("Runner");
@@ -97,13 +104,32 @@ describe("King’s Road", () => {
     g.units.push({ id: 2, node: 4 });
     expect(aiAction(g)).toEqual({ type: "end" });
   });
-  it("scores a return to the turn start once, never repeated backtracking", () => {
+  it("computer Runners prefer new points but can cross the excluded start to reach them", () => {
+    let g = createGame("Runner");
+    g.turn = "Runner";
+    g.phase = "run";
+    g.budget = 4;
+    g.runner = 0;
+    g.visited = [1, 0];
+    g.scored = [0];
+    g.scores.Runner = 1;
+    expect(aiAction(g)).toEqual({ type: "run", node: 4 });
+    // Block the other exits: the start is still a legal route to a fresh location.
+    g.walls[4] = g.walls[5] = 3;
+    expect(aiAction(g)).toEqual({ type: "run", node: 1 });
+    g = act(g, aiAction(g));
+    expect(g.scores.Runner).toBe(1);
+    expect(aiAction(g)).toEqual({ type: "run", node: 2 });
+    expect(act(g, aiAction(g)).scores.Runner).toBe(2);
+  });
+  it("never scores the starting location or repeated backtracking", () => {
     let g = createGame("Runner");
     g.turn = "Runner";
     g.phase = "run";
     g.budget = 8;
     for (const node of [1, 0, 1, 0]) g = act(g, { type: "run", node });
-    expect(g.scores.Runner).toBe(2);
+    expect(g.scores.Runner).toBe(1);
+    expect(g.scored).toEqual([1]);
   });
   it("never resets visited nodes mid-turn, including a full circuit", () => {
     let g = createGame("Runner");
@@ -111,9 +137,9 @@ describe("King’s Road", () => {
     g.phase = "run";
     g.budget = 8;
     for (const node of [1, 2, 3, 4, 5, 0, 1]) g = act(g, { type: "run", node });
-    expect(g.scores.Runner).toBe(6);
+    expect(g.scores.Runner).toBe(5);
     expect(g.visited).toHaveLength(6);
-    expect(g.scored).toHaveLength(6);
+    expect(g.scored).toHaveLength(5);
   });
   it("allows nodes to score again next turn and preserves total scores", () => {
     let g = createGame("Runner");
@@ -141,8 +167,31 @@ describe("King’s Road", () => {
     g = JSON.parse(JSON.stringify(g));
     g = act(g, { type: "run", node: 0 });
     g = act(g, { type: "run", node: 1 });
-    expect(g.scores.Runner).toBe(2);
+    expect(g.scores.Runner).toBe(1);
   });
+  it.each([0, 1, 2, 3, 4, 5])(
+    "excludes starting location %i from coins and scoring",
+    (start) => {
+      let g = createGame("Runner");
+      g.turn = "Runner";
+      g.runner = start;
+      g = act(g, { type: "roll" });
+      g.budget = 8;
+      const destination = neighbors(start)[0];
+      expect(runnerCanScore(g, start)).toBe(false);
+      expect(
+        [0, 1, 2, 3, 4, 5].filter((n) => runnerCanScore(g, n)),
+      ).toHaveLength(5);
+      g = act(g, { type: "run", node: destination });
+      expect(runnerCanScore(g, destination)).toBe(false);
+      expect(
+        [0, 1, 2, 3, 4, 5].filter((n) => runnerCanScore(g, n)),
+      ).toHaveLength(4);
+      g = act(g, { type: "run", node: start });
+      expect(g.scores.Runner).toBe(1);
+      expect(runnerCanScore(g, start)).toBe(false);
+    },
+  );
   it("lets soldiers hold and Runner end early", () => {
     let g = createGame("Army");
     g.turn = "Army";

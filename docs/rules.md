@@ -81,7 +81,7 @@ The original rules above are retained as supplied. Subsequent author clarificati
 
 - Army units may stay in place instead of moving.
 - The Runner may end its turn early, leaving movement points unused.
-- Returning to the Runner’s original starting space counts for scoring. The starting-space exclusion in the original text above is superseded by this clarification.
+- The location where a Runner turn begins never scores during that turn, including on a return. Returning is still a legal move. This current rule supersedes the earlier playtest that allowed the first return to score.
 
 For the current scoring and sequencing details used by the browser game, see [implementation decisions](design.md).
 
@@ -103,6 +103,8 @@ The Runner must have enough movement for the entire crossing and capture. If it 
 
 ## Latest Runner scoring clarification
 
-Runner points are awarded per unique node **entered during that Runner turn**, rather than per exploration circuit. Starting on a node gives no point. If the Runner leaves and returns to that starting node, it earns one point for that entry. Further visits to any node already scored that turn earn nothing.
+Runner points are awarded per new node **entered during that Runner turn**, rather than per exploration circuit. The location where that turn began is excluded for the entire turn: neither starting there nor returning there awards a point. Further visits to any other node already visited that turn also earn nothing.
 
-For example, I → II → I → II → I earns two points: one for entering II and one for returning to I. Scoring eligibility resets at the next Runner turn, even if not all six locations were reached. Visiting all six never resets it within a turn. Accumulated scores are retained. This supersedes the original circuit-reset rule and confirms that a return to the starting space can score once per turn.
+For example, I → II → I → II → I earns **one point**, for entering II the first time. At most five locations can score in a turn. Scoring eligibility resets at the next Runner turn, even if not all six locations were reached; the Runner’s new starting location is then excluded. Visiting all six never resets it within a turn. Accumulated scores are retained.
+
+In the browser game, a silver coin floats above each location that can still award a point. A first visit collects it. The starting location has no coin. Colored rings show which moves are currently affordable; a coin alone does not mean the location is reachable with the remaining movement.

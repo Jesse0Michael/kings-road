@@ -15,21 +15,20 @@ import {
   Role,
   roles,
   runCost,
+  runnerCanScore,
 } from "../game/engine";
 import { Table, colors } from "../scene/Table";
 import { history, loadGame, save } from "../persistence";
 import { useGameAudio } from "../audio/useGameAudio";
-const descriptions = {
-  Builder:
-    "Raise walls. Shape the battlefield. Earn points when soldiers sacrifice themselves.",
-  Army: "Command your soldiers. Breach the defenses. Reach the castle.",
-  Runner: "Explore the roads. Break walls and evade the armies.",
-};
+import { Welcome, HowToPlay } from "../ui/Welcome";
 export default function App() {
   const [game, setGame] = useState<Game | null>(loadGame);
   const [screen, setScreen] = useState<
     "home" | "game" | "rules" | "history" | "settings"
   >("home");
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [screen]);
   const {
     player: audio,
     preferences: audioPreferences,
@@ -200,7 +199,7 @@ export default function App() {
               ? "Deploy your soldiers. Five per node; the Runner’s location is protected."
               : g.phase === "move"
                 ? "Select a group, then a connected destination. Excess soldiers remain ready. Or hold position."
-                : "Choose a connected location or end your turn. Entering a soldier’s location costs 1 extra movement point.";
+                : "Follow silver coins for points. Your starting location never scores this turn. End movement beneath your counter.";
   return (
     <div className="app">
       <header>
@@ -236,80 +235,24 @@ export default function App() {
         </div>
       )}
       {screen === "home" && (
-        <main className="landing">
-          <section className="intro">
-            <p className="eyebrow">THREE ROLES. ONE KINGDOM.</p>
-            <h1>
-              Every road
-              <br />
-              leads to a <em>rival.</em>
-            </h1>
-            <p className="lede">
-              A game of walls, conquest, and wandering. Pull up a chair at the
-              tavern table. The kingdom is yours to contest.
-            </p>
-            <div className="role-picker">
-              {roles.map((r) => (
-                <button
-                  key={r}
-                  className={role === r ? "chosen" : ""}
-                  style={{ "--role": colors[r] } as React.CSSProperties}
-                  onClick={() => setRole(r)}
-                >
-                  <span>
-                    {r === "Builder" ? "▥" : r === "Army" ? "⚔" : "♟"}
-                  </span>
-                  {r}
-                  <small>
-                    {r === "Builder"
-                      ? "3 × d4"
-                      : r === "Army"
-                        ? "2 × d6"
-                        : "1 × d8"}
-                  </small>
-                </button>
-              ))}
-            </div>
-            <p className="role-description">{descriptions[role]}</p>
-            <button
-              className="primary"
-              onClick={() => {
-                if (
-                  g &&
-                  !g.winner &&
-                  !window.confirm(
-                    "Start a new game? Your current game will be replaced.",
-                  )
-                )
-                  return;
-                newGame();
-              }}
-            >
-              Take your seat as {role} <span>→</span>
-            </button>
-            {g && (
-              <button className="continue" onClick={() => setScreen("game")}>
-                Continue {g.human} game · Round {g.round} →
-              </button>
-            )}
-            <p className="fine">
-              One human · Two computer rivals · Saved on this browser
-            </p>
-          </section>
-          <div className="hero-board">
-            <Table
-              game={g || createGame("Runner", 42)}
-              onNode={() => {}}
-              onRoad={() => {}}
-              selected={null}
-              diceRoll={null}
-            />
-            <div className="hero-caption">
-              <span>THE CARVED TABLE COLLECTION</span>
-              <strong>A familiar game. An uncertain road.</strong>
-            </div>
-          </div>
-        </main>
+        <Welcome
+          role={role}
+          onChoose={setRole}
+          game={g}
+          onStart={() => {
+            if (
+              g &&
+              !g.winner &&
+              !window.confirm(
+                "Start a new game? Your current game will be replaced.",
+              )
+            )
+              return;
+            newGame();
+          }}
+          onContinue={() => setScreen("game")}
+          onLearn={() => setScreen("rules")}
+        />
       )}
       {screen === "game" && g && (
         <main className="play">
@@ -357,24 +300,37 @@ export default function App() {
             />
             {!g.winner && ["build", "deploy", "run"].includes(g.phase) && (
               <div
-                className="remaining-actions"
+                className="table-controls"
                 style={{ "--role": colors[g.turn] } as React.CSSProperties}
-                role="status"
-                aria-label={`${g.turn} remaining actions`}
-                aria-live={human ? "polite" : "off"}
-                aria-atomic="true"
               >
-                <b>{g.budget}</b>
-                <div>
-                  <small>{g.turn}</small>
-                  <span>
-                    {g.phase === "build"
-                      ? `${g.budget === 1 ? "Wall" : "Walls"} left`
-                      : g.phase === "deploy"
-                        ? `${g.budget === 1 ? "Soldier" : "Soldiers"} left`
-                        : "Movement points left"}
-                  </span>
+                <div
+                  className="remaining-actions"
+                  role="status"
+                  aria-label={`${g.turn} remaining actions`}
+                  aria-live={human ? "polite" : "off"}
+                  aria-atomic="true"
+                >
+                  <b>{g.budget}</b>
+                  <div>
+                    <small>{g.turn}</small>
+                    <span>
+                      {g.phase === "build"
+                        ? `${g.budget === 1 ? "Wall" : "Walls"} left`
+                        : g.phase === "deploy"
+                          ? `${g.budget === 1 ? "Soldier" : "Soldiers"} left`
+                          : "Movement points left"}
+                    </span>
+                  </div>
                 </div>
+                {human && g.phase === "run" && (
+                  <button
+                    className="table-end"
+                    disabled={rolling}
+                    onClick={() => dispatch({ type: "end" })}
+                  >
+                    End movement <span aria-hidden="true">→</span>
+                  </button>
+                )}
               </div>
             )}
             {!g.winner && human && g.phase === "roll" && (
@@ -430,23 +386,18 @@ export default function App() {
                   <small>{g.dice.reduce((a, b) => a + b, 0)} total</small>
                 </div>
               )}
-              {!g.winner &&
-                human &&
-                (g.phase === "run" || g.phase === "move") && (
-                  <button
-                    className="secondary"
-                    disabled={rolling}
-                    onClick={() => {
-                      dispatch({ type: "end" });
-                      setSelected(null);
-                    }}
-                  >
-                    {g.phase === "move"
-                      ? "Hold remaining soldiers"
-                      : "End movement"}{" "}
-                    →
-                  </button>
-                )}
+              {!g.winner && human && g.phase === "move" && (
+                <button
+                  className="secondary"
+                  disabled={rolling}
+                  onClick={() => {
+                    dispatch({ type: "end" });
+                    setSelected(null);
+                  }}
+                >
+                  Hold remaining soldiers →
+                </button>
+              )}
               {g.winner && (
                 <button className="primary" onClick={() => setScreen("home")}>
                   Back to the tavern →
@@ -493,7 +444,7 @@ export default function App() {
                             {g.phase === "run"
                               ? runCost(g, n) === Infinity
                                 ? "—"
-                                : `${runCost(g, n)} MP${g.scored.includes(n) ? "" : " · +1"}`
+                                : `${runCost(g, n)} MP${runnerCanScore(g, n) ? " · +1" : ""}`
                               : `${count} soldiers`}
                           </small>
                         </button>
@@ -517,55 +468,10 @@ export default function App() {
         </main>
       )}
       {screen === "rules" && (
-        <main className="paper">
-          <p className="eyebrow">A TRADITION OF KHYRIEL</p>
-          <h1>The rules of the road.</h1>
-          <p>
-            Three roles take turns: Builder → Army → Runner. First to 15 points
-            wins immediately.
-          </p>
-          {roles.map((r) => (
-            <section key={r}>
-              <h2 style={{ color: colors[r] }}>{r}</h2>
-              <p>
-                {r === "Builder"
-                  ? "Roll 3d4. Every two points buys one wall on any road. Each road holds at most five walls. A soldier sacrificed against a wall earns you one point. Unspent odd construction points are discarded."
-                  : r === "Army"
-                    ? "Move each existing group at most one road, or let it hold position. Each node holds at most five soldiers; excess stay at the origin and can try another road. Soldiers that cross cannot move again this turn. An unobstructed arrival at the castle scores one point and removes the soldier. Crossing a blocked road sacrifices the soldier to remove one wall, scoring one point for the Builder. Then roll 2d6 and deploy that many soldiers among perimeter locations, excluding the Runner’s location."
-                    : "Roll 1d8 for movement. An open road costs one point; a road with walls costs two points per wall, including the crossing, and destroys all its walls. Entering an occupied location costs one extra movement point and removes exactly one soldier, with no Builder point. That means two points across an open road, or three across one wall. The extra cost is the same however many soldiers are there. You may end movement early."}
-              </p>
-            </section>
-          ))}
-          <h2>Exploration</h2>
-          <p>
-            The Runner earns one point for each unique location entered during
-            its turn. The starting location earns no point at the start, but
-            returning to it can score once. Revisiting any location in the same
-            turn earns no extra points, even after visiting all six. The visited
-            set resets at the start of the next Runner turn; total scores carry
-            over between rounds.
-          </p>
-          <h2>At the table</h2>
-          <p>
-            Click roads to build walls. For the Army, select a location with a
-            ready group and then an adjacent destination. Click locations to
-            deploy or move the Runner. The labeled controls beside the board
-            offer the same actions. Location VI is the central castle, marked ♜.
-          </p>
-          <h2>Your chronicle</h2>
-          <p>
-            Games save automatically in this browser. Use Continue to return to
-            your current game. Clearing browser storage removes local games.
-            This prototype preserves the original asymmetric rules; opponents
-            and scoring are not balanced.
-          </p>
-          <button
-            className="primary"
-            onClick={() => setScreen(g ? "game" : "home")}
-          >
-            Return to {g ? "the table" : "the tavern"} →
-          </button>
-        </main>
+        <HowToPlay
+          onReturn={() => setScreen(g ? "game" : "home")}
+          returnLabel={g ? "the table" : "the tavern"}
+        />
       )}
       {screen === "settings" && (
         <main className="paper">
