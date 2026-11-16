@@ -4,6 +4,8 @@
 
 A static, browser-only game: one human chooses any role and plays against two computer rivals. The rules remain asymmetric and unbalanced as designed. There is no backend or account system. The compact scoreboard sits above the playing surface and shows each role's score. The winning card is labeled and pulses gently; reduced-motion mode keeps a static highlight. The role-colored Roll button appears on the table for the human’s roll phase. Speed and audio preferences live in Settings. The journal uses the board's Roman numerals, including when displaying older saved entries.
 
+After a roll, a role-colored counter in the upper-right corner of the tabletop shows walls left to build, soldiers left to deploy, or movement points left. It uses the current action budget and updates without waiting for piece animations. The counter also shows computer turns and stays on the table at mobile sizes; it is hidden before rolling, during Army movement, and after victory.
+
 ## Art direction and input
 
 The carved tabletop uses a semi-realistic timber table texture and a quieter continuous wood texture on the pentagonal board. Both are generated, bundled WebP assets. Canvas-drawn engravings and a matching bump map add the roads, Roman numerals I–V, borders, and central castle emblem directly to the board surface. The castle is part of the board; node labels and soldier counts do not float over the scene.
@@ -22,7 +24,7 @@ Author confirmations supersede the relevant wording in the [original rules](rule
 - Castle arrivals score and leave immediately, so castle occupancy does not accumulate.
 - Deployments cannot use the Runner’s node. If every eligible placement is full, leftover reinforcements or construction are discarded. Older over-cap saves are not trimmed; additions wait until below the cap.
 - The Runner may end movement early. A blocked crossing costs two movement points per wall, including the crossing. It must clear every wall to cross; partial destruction is unavailable.
-- Entering an occupied location removes exactly one soldier, with no Builder point.
+- Entering an occupied location costs one extra movement point and removes exactly one soldier, with no Builder point. Crossing an open road into soldiers therefore costs two points; one wall plus soldiers costs three, and two walls plus soldiers costs five. The surcharge applies once per entry, regardless of group size, and disappears when the last soldier is gone. The Runner must afford the full crossing and capture before moving. Human controls, board highlights, and computer choices share this calculation.
 - The Runner scores once per unique location **entered during that turn**. Starting on a location gives no point, but leaving and returning earns one. Repeated visits earn nothing further that turn. Visiting all six never resets scoring mid-turn. Eligibility resets at the next Runner turn; total scores accumulate.
 - Victory is immediate at 15, including Builder points earned during an Army turn.
 - The Builder spends all purchased walls and the Army deploys all placeable reinforcements. Only Army movement and Runner movement have an optional early end.

@@ -73,6 +73,9 @@ test("human Builder can build and human Army can deploy", async ({ page }) => {
   await page.getByRole("button", { name: /Builder 3/ }).click();
   await page.getByRole("button", { name: "Take your seat as Builder" }).click();
   const roll = page.getByRole("button", { name: "Roll", exact: true });
+  await expect(
+    page.getByRole("status", { name: "Builder remaining actions" }),
+  ).toHaveCount(0);
   expect(await roll.evaluate((e) => e.closest(".table-area") !== null)).toBe(
     true,
   );
@@ -82,8 +85,19 @@ test("human Builder can build and human Army can deploy", async ({ page }) => {
   const budget = await page.evaluate(
     () => JSON.parse(localStorage.getItem("kings-road.game.v1")!).budget,
   );
-  for (let i = 0; i < budget; i++)
+  const builderCounter = page.getByRole("status", {
+    name: "Builder remaining actions",
+  });
+  await expect(builderCounter.locator("b")).toHaveText(String(budget));
+  await expect(builderCounter).toContainText("Walls left");
+  for (let i = 0; i < budget; i++) {
     await page.locator(".roads button:enabled").first().click();
+    if (i < budget - 1)
+      await expect(builderCounter.locator("b")).toHaveText(
+        String(budget - i - 1),
+      );
+  }
+  await expect(builderCounter).toHaveCount(0);
   await page.getByRole("button", { name: /KING’S ROAD/ }).click();
   await page.getByRole("button", { name: /Army 2/ }).click();
   page.once("dialog", (d) => d.accept());
@@ -96,7 +110,16 @@ test("human Builder can build and human Army can deploy", async ({ page }) => {
   ).toBeVisible({ timeout: 30000 });
   await page.getByRole("button", { name: "Roll", exact: true }).click();
   await expect(page.locator(".locations")).toBeVisible();
+  const recruits = await page.evaluate(
+    () => JSON.parse(localStorage.getItem("kings-road.game.v1")!).budget,
+  );
+  const armyCounter = page.getByRole("status", {
+    name: "Army remaining actions",
+  });
+  await expect(armyCounter.locator("b")).toHaveText(String(recruits));
+  await expect(armyCounter).toContainText("Soldiers left");
   await page.locator(".locations button").nth(1).click();
+  await expect(armyCounter.locator("b")).toHaveText(String(recruits - 1));
   expect(
     await page.evaluate(
       () =>
@@ -122,6 +145,9 @@ test("a resumed game highlights its winner and records history once", async ({
   await expect(winner).toContainText("Runner");
   await expect(winner).toContainText("WINNER");
   await expect(winner.locator("b")).toHaveText("15");
+  await expect(
+    page.getByRole("status", { name: "Runner remaining actions" }),
+  ).toHaveCount(0);
   await expect(winner).toHaveCSS("animation-name", "winner-pulse");
   await page.screenshot({
     path: testInfo.outputPath("winner.png"),
@@ -195,11 +221,74 @@ test("rapid placements remain enabled while pieces animate", async ({
   );
   expect(state.walls.slice(0, 2)).toEqual([2, 1]);
   expect(state.budget).toBe(2);
+  await expect(
+    page
+      .getByRole("status", { name: "Builder remaining actions" })
+      .locator("b"),
+  ).toHaveText("2");
   await page.clock.runFor(230);
   await page.screenshot({
     path: testInfo.outputPath("overlapping-placements.png"),
   });
   expect(errors).toEqual([]);
+});
+
+test("Runner allowance counts walls and captures, persists, and remains visible on mobile", async ({
+  page,
+}, testInfo) => {
+  const g = createGame("Runner", 17);
+  g.turn = "Runner";
+  g.phase = "run";
+  g.budget = 4;
+  g.dice = [4];
+  g.walls[0] = 1;
+  g.units = [
+    { id: 1, node: 1 },
+    { id: 2, node: 2 },
+  ];
+  g.nextId = 3;
+  await resumeGame(page, g);
+  const counter = page.getByRole("status", {
+    name: "Runner remaining actions",
+  });
+  await expect(counter.locator("b")).toHaveText("4");
+  await expect(counter).toContainText("Movement points left");
+  await expect(page.locator(".locations button").nth(1)).toContainText("3 MP");
+  await page.locator(".locations button").nth(1).click();
+  await expect(counter.locator("b")).toHaveText("1");
+  const state = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("kings-road.game.v1")!),
+  );
+  expect(state.units).toEqual([{ id: 2, node: 2 }]);
+  expect(state.walls[0]).toBe(0);
+  expect(state.scores).toEqual({ Builder: 0, Army: 0, Runner: 1 });
+  await expect(page.locator(".locations button").nth(2)).toContainText("2 MP");
+  await expect(page.locator(".locations button").nth(2)).toBeDisabled();
+  await expect(page.locator(".locations button").nth(0)).toBeEnabled();
+  await page.reload();
+  await page.getByRole("button", { name: /^Continue Runner game/ }).click();
+  await expect(counter.locator("b")).toHaveText("1");
+  // Let the reloaded WebGL scene finish loading before capturing its overlay.
+  await expect(page.locator("canvas")).toBeVisible();
+  await page.waitForTimeout(1200);
+  await page.screenshot({
+    path: testInfo.outputPath("remaining-movement-desktop.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(counter).toBeInViewport();
+  const board = (await page.locator("canvas").boundingBox())!;
+  const badge = (await counter.boundingBox())!;
+  expect(badge.x).toBeGreaterThan(board.x + board.width / 2);
+  expect(badge.x + badge.width).toBeLessThanOrEqual(board.x + board.width);
+  expect(badge.y).toBeGreaterThanOrEqual(board.y);
+  await expect(page.locator(".locations button").nth(2)).toBeDisabled();
+  await page.screenshot({
+    path: testInfo.outputPath("remaining-movement-mobile.png"),
+    fullPage: true,
+  });
+  await page.locator(".locations button").nth(0).click();
+  await expect(counter).toHaveCount(0);
 });
 
 test("large road tap targets pick the intended edge; Army selections and mobile Roll work", async ({

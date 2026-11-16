@@ -95,6 +95,12 @@ For the current scoring and sequencing details used by the browser game, see [im
 
 These playtest revisions supersede the original unlimited stacking and individual movement rules in the browser game.
 
+## Runner movement playtest revision
+
+Entering a node occupied by Army soldiers costs **one extra movement point** and still destroys exactly one soldier, without awarding the Builder a point. An open road into soldiers costs **2 movement points**. Wall costs still apply: one wall and soldiers cost **3 points**, or two walls and soldiers cost **5 points**. The extra point applies once per entry, regardless of how many soldiers occupy the node.
+
+The Runner must have enough movement for the entire crossing and capture. If it cannot afford the move, no movement, wall destruction, or capture takes place. Once a node has no soldiers, entering it costs only the road’s usual movement cost. This revises the original rule that removed a soldier without an additional movement cost.
+
 ## Latest Runner scoring clarification
 
 Runner points are awarded per unique node **entered during that Runner turn**, rather than per exploration circuit. Starting on a node gives no point. If the Runner leaves and returns to that starting node, it earns one point for that entry. Further visits to any node already scored that turn earn nothing.

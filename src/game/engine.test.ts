@@ -1,6 +1,6 @@
 import { aiAction } from "./ai";
 import { describe, it, expect } from "vitest";
-import { act, createGame, roads } from "./engine";
+import { act, createGame, roads, runCost } from "./engine";
 describe("King’s Road", () => {
   it("has five perimeter roads and five spokes", () =>
     expect(roads).toHaveLength(10));
@@ -37,21 +37,65 @@ describe("King’s Road", () => {
     g.budget = 4;
     expect(act(g, { type: "deploy", node: 0 })).toBe(g);
   });
-  it("charges two points per wall and kills only one soldier without Builder points", () => {
+  it("adds the soldier cost to stacked walls and removes only one soldier without Builder points", () => {
     const g = createGame("Runner");
     g.turn = "Runner";
     g.phase = "run";
-    g.budget = 5;
+    g.budget = 4;
     g.walls[0] = 2;
     g.units = [
       { id: 1, node: 1 },
       { id: 2, node: 1 },
     ];
+    // Crossing two walls and fighting a soldier costs five. No partial action is allowed.
+    expect(act(g, { type: "run", node: 1 })).toBe(g);
+    g.budget = 6;
     const n = act(g, { type: "run", node: 1 });
     expect(n.budget).toBe(1);
     expect(n.units).toHaveLength(1);
     expect(n.walls[0]).toBe(0);
     expect(n.scores).toEqual({ Builder: 0, Army: 0, Runner: 1 });
+  });
+  it("requires two movement points to enter an occupied node, regardless of group size", () => {
+    const g = createGame("Runner");
+    g.turn = "Runner";
+    g.phase = "run";
+    g.budget = 1;
+    g.units = Array.from({ length: 5 }, (_, id) => ({ id, node: 1 }));
+    expect(runCost(g, 1)).toBe(2);
+    expect(act(g, { type: "run", node: 1 })).toBe(g);
+    g.budget = 2;
+    const n = act(g, { type: "run", node: 1 });
+    expect(n.runner).toBe(1);
+    expect(n.units).toHaveLength(4);
+    expect(n.scores).toEqual({ Builder: 0, Army: 0, Runner: 1 });
+    expect(n.budget).toBe(0);
+    expect(n.turn).toBe("Builder");
+  });
+  it("charges the occupied-node cost again only if a soldier remains on return", () => {
+    let g = createGame("Runner");
+    g.turn = "Runner";
+    g.phase = "run";
+    g.budget = 8;
+    g.units = [{ id: 1, node: 1 }];
+    g = act(g, { type: "run", node: 1 });
+    expect(g.budget).toBe(6);
+    g = act(g, { type: "run", node: 0 });
+    expect(runCost(g, 1)).toBe(1);
+    g = act(g, { type: "run", node: 1 });
+    expect(g.budget).toBe(4);
+    expect(g.scores.Runner).toBe(2);
+  });
+  it("computer Runners choose affordable routes and stop when soldiers block the last point", () => {
+    const g = createGame("Runner");
+    g.turn = "Runner";
+    g.phase = "run";
+    g.budget = 1;
+    g.units = [{ id: 1, node: 1 }];
+    g.walls[5] = 1;
+    expect(aiAction(g)).toEqual({ type: "run", node: 4 });
+    g.units.push({ id: 2, node: 4 });
+    expect(aiAction(g)).toEqual({ type: "end" });
   });
   it("scores a return to the turn start once, never repeated backtracking", () => {
     let g = createGame("Runner");

@@ -195,12 +195,12 @@ export default function App() {
         : g.phase === "roll"
           ? `Roll your ${g.turn === "Builder" ? "3d4" : g.turn === "Army" ? "2d6" : "d8"} to begin.`
           : g.phase === "build"
-            ? `Place ${g.budget} more ${g.budget === 1 ? "wall" : "walls"} across the roads.`
+            ? "Place your walls across the roads. Each road holds up to five."
             : g.phase === "deploy"
-              ? `Deploy ${g.budget} soldiers. Five per node; the Runner’s location is protected.`
+              ? "Deploy your soldiers. Five per node; the Runner’s location is protected."
               : g.phase === "move"
                 ? "Select a group, then a connected destination. Excess soldiers remain ready. Or hold position."
-                : `${g.budget} movement points. Choose a connected location or end your turn.`;
+                : "Choose a connected location or end your turn. Entering a soldier’s location costs 1 extra movement point.";
   return (
     <div className="app">
       <header>
@@ -355,6 +355,28 @@ export default function App() {
               diceRoll={diceRoll}
               transitions={transitions}
             />
+            {!g.winner && ["build", "deploy", "run"].includes(g.phase) && (
+              <div
+                className="remaining-actions"
+                style={{ "--role": colors[g.turn] } as React.CSSProperties}
+                role="status"
+                aria-label={`${g.turn} remaining actions`}
+                aria-live={human ? "polite" : "off"}
+                aria-atomic="true"
+              >
+                <b>{g.budget}</b>
+                <div>
+                  <small>{g.turn}</small>
+                  <span>
+                    {g.phase === "build"
+                      ? `${g.budget === 1 ? "Wall" : "Walls"} left`
+                      : g.phase === "deploy"
+                        ? `${g.budget === 1 ? "Soldier" : "Soldiers"} left`
+                        : "Movement points left"}
+                  </span>
+                </div>
+              </div>
+            )}
             {!g.winner && human && g.phase === "roll" && (
               <button
                 className="roll-button board-roll"
@@ -510,7 +532,7 @@ export default function App() {
                   ? "Roll 3d4. Every two points buys one wall on any road. Each road holds at most five walls. A soldier sacrificed against a wall earns you one point. Unspent odd construction points are discarded."
                   : r === "Army"
                     ? "Move each existing group at most one road, or let it hold position. Each node holds at most five soldiers; excess stay at the origin and can try another road. Soldiers that cross cannot move again this turn. An unobstructed arrival at the castle scores one point and removes the soldier. Crossing a blocked road sacrifices the soldier to remove one wall, scoring one point for the Builder. Then roll 2d6 and deploy that many soldiers among perimeter locations, excluding the Runner’s location."
-                    : "Roll 1d8 for movement. An open road costs one point; a road with walls costs two points per wall, including the crossing, and destroys all its walls. Entering an occupied location removes one soldier, with no Builder point. You may end movement early."}
+                    : "Roll 1d8 for movement. An open road costs one point; a road with walls costs two points per wall, including the crossing, and destroys all its walls. Entering an occupied location costs one extra movement point and removes exactly one soldier, with no Builder point. That means two points across an open road, or three across one wall. The extra cost is the same however many soldiers are there. You may end movement early."}
               </p>
             </section>
           ))}

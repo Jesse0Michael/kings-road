@@ -69,7 +69,10 @@ export const neighbors = (n: number) =>
   roads.flatMap(([a, b]) => (a === n ? [b] : b === n ? [a] : []));
 export const runCost = (g: Game, n: number) => {
   const r = roadBetween(g.runner, n);
-  return r < 0 ? Infinity : g.walls[r] ? 2 * g.walls[r] : 1;
+  if (r < 0) return Infinity;
+  const crossing = g.walls[r] ? 2 * g.walls[r] : 1;
+  // Fighting the one soldier removed on arrival costs one extra movement point.
+  return crossing + (g.units.some((u) => u.node === n) ? 1 : 0);
 };
 function note(g: Game, s: string) {
   g.log = [s, ...g.log].slice(0, 60);

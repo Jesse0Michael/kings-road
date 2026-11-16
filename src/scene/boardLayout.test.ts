@@ -39,3 +39,18 @@ it("Army node indicators distinguish deployment, ready origins, and reachable de
   expect(nodeSelectable(g, 5, null)).toBe(false);
   expect(nodeSelectable(g, 2, null)).toBe(true);
 });
+it("Runner targets include the movement point needed to capture a soldier", () => {
+  const g = createGame("Runner");
+  g.turn = "Runner";
+  g.phase = "run";
+  g.budget = 1;
+  g.units = [{ id: 1, node: 1 }];
+  expect(nodeSelectable(g, 1, null)).toBe(false);
+  expect(nodeSelectable(g, 4, null)).toBe(true);
+  g.budget = 2;
+  expect(nodeSelectable(g, 1, null)).toBe(true);
+  g.walls[0] = 1;
+  expect(nodeSelectable(g, 1, null)).toBe(false);
+  g.budget = 3;
+  expect(nodeSelectable(g, 1, null)).toBe(true);
+});
