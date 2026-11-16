@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import type { Game } from "../../src/game/engine";
 
-/** Seed browser storage, then exercise the same Continue path as a returning player. */
+/** Seed browser storage, then use the header's Return to table action. */
 export async function resumeGame(page: Page, game: Game) {
   await page.goto("/");
   await page.getByRole("heading", { name: /Every road/ }).waitFor();
@@ -11,6 +11,6 @@ export async function resumeGame(page: Page, game: Game) {
   );
   await page.reload();
   await page
-    .getByRole("button", { name: new RegExp(`^Continue ${game.human} game`) })
+    .getByRole("button", { name: "Return to table", exact: true })
     .click();
 }

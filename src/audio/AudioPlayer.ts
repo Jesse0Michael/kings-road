@@ -159,6 +159,9 @@ export class AudioPlayer {
   }
 
   async preview() {
+    // A new slider release replaces the previous preview, even while loading.
+    this.cancelEffects();
+    if (!this.preferences.effects || this.hidden) return;
     this.unlock();
     const epoch = this.cueEpoch;
     await this.loadEffects();

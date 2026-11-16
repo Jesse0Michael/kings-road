@@ -42,17 +42,17 @@ The **Roll** button appears on the table in your role’s color when you can rol
 
 The Runner’s **End movement** and Army’s **Hold remaining soldiers** buttons sit directly beneath that counter. Rotating silver coins mark locations that can still award the Runner a point this turn; the starting location has no coin. Each collected coin fades when the traveler arrives, even when moves are queued rapidly. Unvisited coins stay until the turn ends and its queued movement finishes. Coins reset on the next Runner turn, excluding its new starting location. Coins indicate points still available; colored node rings indicate moves you can afford now. Returning through a visited location is legal but earns nothing.
 
-The landing page previews your selected role. **How to play** includes three short, silent loops captured from the game, simple scoring explanations, and Runner movement-cost examples. Each clip has a pause button, pauses offscreen or in a hidden tab, and starts as a still image when reduced motion is enabled.
+The landing page previews your selected role. **How to play** gives each role a card with a short, silent gameplay loop and its scoring rules. Capacity limits sit inside the Builder and Army cards; the Runner card includes movement costs. Each clip has a pause button, pauses offscreen or in a hidden tab, and starts as a still image when reduced motion is enabled.
 
 Preview the [welcome screen](docs/screenshots/welcome.png) and [visual rules](docs/screenshots/how-to-play.png).
 
-Pieces drop, lift, glide, and settle without locking your next action. Computer placements overlap with a short stagger. Runner captures wait for the traveler to arrive. **Settings → Fast computer turns** shortens computer pauses and rolls; the app also respects your system’s reduced-motion preference.
+Pieces drop, lift, glide, and settle without locking your next action. Computer placements overlap with a short stagger. Runner captures wait for the traveler to arrive. The app respects your system’s reduced-motion preference.
 
-**Settings → Sound at the table** has independent music and effects volume sliders. Music starts at 20%, effects at 40%; zero mutes either channel. Preferences are remembered in this browser. **Tavern Dance**, supplied by the game's creator, loops in the background after your first interaction. Audio pauses in a hidden tab. Quiet original effects accompany placements, movement, broken walls, fallen soldiers, castle arrivals, dice, points, and victory; their timing follows the piece animations.
+**Settings → Sound at the table** has independent music and effects volume sliders. Music starts at 20%, effects at 40%; zero mutes either channel. Releasing the effects slider, or a keyboard adjustment key, plays a short preview at the selected volume. Preferences are remembered in this browser. **Tavern Dance**, supplied by the game's creator, loops in the background after your first interaction. Audio pauses in a hidden tab. Quiet original effects accompany placements, movement, broken walls, fallen soldiers, castle arrivals, dice, points, and victory; their timing follows the piece animations.
 
 ## Saves and history
 
-- Continue the current game from the home screen.
+- Resume the current game with **Return to table** in the header.
 - The Chronicle keeps the most recent 100 completed games and their final scores.
 
 Saves belong to this browser and web address. Starting a new game replaces the active game. Clearing browser storage removes saved games and the Chronicle; games do not transfer between browsers, devices, or web addresses.

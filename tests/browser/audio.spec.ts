@@ -105,7 +105,7 @@ test("music loops after interaction; volumes, mute, hidden tabs and saved settin
   await effects.press("Home");
   await expect(music).toHaveValue("0");
   await expect(effects).toHaveValue("0");
-  await expect(page.getByRole("button", { name: "Test sound" })).toBeDisabled();
+  expect(await page.evaluate(() => window.__krAudio.starts.length)).toBe(0);
   await expect
     .poll(() => page.evaluate(() => window.__krAudio.music!.paused))
     .toBe(true);
@@ -114,11 +114,42 @@ test("music loops after interaction; volumes, mute, hidden tabs and saved settin
   await expect(music).toHaveValue("0");
   await expect(effects).toHaveValue("0");
   await effects.focus();
-  await effects.press("ArrowRight");
-  await page.getByRole("button", { name: "Test sound" }).click();
+  await page.keyboard.down("ArrowRight");
+  await expect(effects).toHaveValue("1");
+  expect(await page.evaluate(() => window.__krAudio.starts.length)).toBe(0);
+  await page.keyboard.up("ArrowRight");
   await expect
     .poll(() => page.evaluate(() => window.__krAudio.starts.length))
     .toBe(2);
+  // Drag through several values, then release outside the track. Preview once
+  // at the final volume, not continuously while the pointer is down.
+  const track = (await effects.boundingBox())!;
+  await page.mouse.move(
+    track.x + track.width * 0.1,
+    track.y + track.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    track.x + track.width * 0.75,
+    track.y + track.height / 2,
+    { steps: 8 },
+  );
+  await page.mouse.move(track.x + track.width * 0.6, track.y - 20);
+  const level = Number(await effects.inputValue());
+  expect(level).toBeGreaterThan(40);
+  expect(await page.evaluate(() => window.__krAudio.starts.length)).toBe(2);
+  await page.mouse.up();
+  await expect
+    .poll(() => page.evaluate(() => window.__krAudio.starts.length))
+    .toBe(4);
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem("kings-road.audio.v1")!).effects,
+    ),
+  ).toBe(level);
+  await effects.press("Home");
+  await expect(effects).toHaveValue("0");
+  expect(await page.evaluate(() => window.__krAudio.starts.length)).toBe(4);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({
     path: testInfo.outputPath("audio-settings-mobile.png"),
@@ -144,7 +175,9 @@ test("real decoded effects follow queued Runner movement and capture", async ({
   g.nextId = 2;
   await resumeGame(page, g);
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByRole("button", { name: "Test sound" }).click();
+  await page
+    .getByRole("slider", { name: "Sound effects volume", exact: true })
+    .press("ArrowRight");
   await expect
     .poll(() => page.evaluate(() => window.__krAudio.starts.length))
     .toBe(2);

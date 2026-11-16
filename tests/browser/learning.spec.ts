@@ -41,12 +41,19 @@ test("role previews and the visual rules teach without modifying a saved game", 
   await page.getByRole("button", { name: "How to play", exact: true }).click();
   await expect(page.locator("video")).toHaveCount(3);
   await expect(page.locator("canvas")).toHaveCount(0);
-  await expect(
-    page.getByRole("heading", { name: "Coins mean points." }),
-  ).toBeVisible();
-  await expect(page.locator(".learn-details")).toContainText(
-    "I → II → I → II earns just 1 point.",
+  const cards = page.locator(".role-guide");
+  await expect(cards).toHaveCount(3);
+  await expect(cards.nth(0)).toContainText("Up to 5 walls per road");
+  await expect(cards.nth(1)).toContainText("Up to 5 soldiers per location");
+  await expect(cards.nth(2)).toContainText(
+    "Your starting location never scores",
   );
+  await expect(cards.nth(2).locator(".movement-costs dd")).toHaveText([
+    "1 MP",
+    "2 MP",
+    "2 MP",
+    "3 MP",
+  ]);
   await expect
     .poll(() => builder.evaluate((v: HTMLVideoElement) => v.currentTime))
     .toBeGreaterThan(0);

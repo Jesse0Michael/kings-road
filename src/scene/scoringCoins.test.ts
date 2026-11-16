@@ -21,7 +21,7 @@ const coins = (pieces: Piece[]) => pieces.filter((p) => p.kind === "coin");
 const coinAt = (pieces: Piece[], node: number) =>
   coins(pieces).find((p) => p.node === node)!;
 
-it("collects each coin at its own queued arrival, even after a fast AI turn has ended", () => {
+it("collects each coin at its own queued arrival, even after a rapidly queued turn has ended", () => {
   let g = runnerGame(3);
   let pieces = reconcilePieces([], g);
   for (const [node, at] of [

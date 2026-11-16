@@ -71,20 +71,6 @@ export default function App() {
     setDiceRoll(null);
     setRolling(false);
   }
-  const [fast, setFast] = useState(() => {
-    try {
-      return localStorage.getItem("kings-road.fast") === "true";
-    } catch {
-      return false;
-    }
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem("kings-road.fast", String(fast));
-    } catch {
-      /* The game save warning handles unavailable storage. */
-    }
-  }, [fast]);
   const [error, setError] = useState("");
   const busy = useRef(false);
   const g = game;
@@ -128,11 +114,7 @@ export default function App() {
     const next = act(active, a);
     if (next === active) return;
     if (a.type === "roll") {
-      const duration = reduced
-        ? 0
-        : fast && active.turn !== active.human
-          ? 1200
-          : ROLL_MS;
+      const duration = reduced ? 0 : ROLL_MS;
       // Capture values before committing, so the fixed-face dice land before gameplay uses them.
       const roll = {
         id: ++sequence.current,
@@ -157,12 +139,9 @@ export default function App() {
   }
   useEffect(() => {
     if (!g || screen !== "game" || human || g.winner || rolling) return;
-    const timer = window.setTimeout(
-      () => dispatch(aiAction(g)),
-      fast ? 100 : 210,
-    );
+    const timer = window.setTimeout(() => dispatch(aiAction(g)), 210);
     return () => clearTimeout(timer);
-  }, [g, screen, rolling, fast]);
+  }, [g, screen, rolling]);
   function node(n: number) {
     if (!g || !human || rolling) return;
     if (g.phase === "deploy") dispatch({ type: "deploy", node: n });
@@ -242,7 +221,6 @@ export default function App() {
         <Welcome
           role={role}
           onChoose={setRole}
-          game={g}
           onStart={() => {
             if (
               g &&
@@ -254,8 +232,6 @@ export default function App() {
               return;
             newGame();
           }}
-          onContinue={() => setScreen("game")}
-          onLearn={() => setScreen("rules")}
         />
       )}
       {screen === "game" && g && (
@@ -480,25 +456,8 @@ export default function App() {
         <main className="paper">
           <p className="eyebrow">MAKE YOURSELF AT HOME</p>
           <h1>Table settings.</h1>
-          <p>Preferences are remembered on this browser.</p>{" "}
-          <label className="speed">
-            <input
-              type="checkbox"
-              checked={fast}
-              onChange={(e) => setFast(e.target.checked)}
-            />{" "}
-            Fast computer turns
-          </label>
-          <p>
-            Fast turns shorten computer pauses and dice animations. Turn this
-            off to enjoy a slower tavern pace.
-          </p>
           <section className="audio-settings" aria-labelledby="sound-heading">
             <h2 id="sound-heading">Sound at the table</h2>
-            <p>
-              Tavern Dance plays on repeat. Set either volume to zero to mute
-              it.
-            </p>
             {(["music", "effects"] as const).map((kind) => (
               <div className="volume-control" key={kind}>
                 <div className="volume-label">
@@ -524,20 +483,32 @@ export default function App() {
                       : "Muted"
                   }
                   onChange={(e) => setLevel(kind, Number(e.target.value))}
+                  onPointerDown={(e) => {
+                    if (kind === "effects")
+                      e.currentTarget.setPointerCapture(e.pointerId);
+                  }}
+                  onPointerUp={() => {
+                    if (kind === "effects") void audio.preview();
+                  }}
+                  onKeyUp={(e) => {
+                    if (
+                      kind === "effects" &&
+                      [
+                        "ArrowLeft",
+                        "ArrowRight",
+                        "ArrowUp",
+                        "ArrowDown",
+                        "Home",
+                        "End",
+                        "PageUp",
+                        "PageDown",
+                      ].includes(e.key)
+                    )
+                      void audio.preview();
+                  }}
                 />
               </div>
             ))}
-            <button
-              className="secondary test-sound"
-              disabled={!audioPreferences.effects}
-              onClick={() => void audio.preview()}
-            >
-              Test sound
-            </button>
-            <p className="audio-note">
-              Audio starts after your first interaction and pauses when you
-              leave this tab.
-            </p>
             {audioError && <p role="status">{audioError}</p>}
           </section>
           <button

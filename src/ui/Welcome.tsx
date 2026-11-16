@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { roles, type Role, type Game } from "../game/engine";
+import { roles, type Role } from "../game/engine";
 import { roleColors } from "../scene/Dice";
 import { GameplayClip } from "./GameplayClip";
 import "./learn.css";
@@ -44,17 +44,11 @@ const guide = {
 export function Welcome({
   role,
   onChoose,
-  game,
   onStart,
-  onContinue,
-  onLearn,
 }: {
   role: Role;
   onChoose: (r: Role) => void;
-  game: Game | null;
   onStart: () => void;
-  onContinue: () => void;
-  onLearn: () => void;
 }) {
   return (
     <main className="welcome">
@@ -67,8 +61,7 @@ export function Welcome({
             leads to a <em>rival.</em>
           </h1>
           <p className="lede">
-            Choose one role. Face two computer rivals. Be the first to reach{" "}
-            <strong>15 points.</strong>
+            Choose one role. Be the first to reach <strong>15 points.</strong>
           </p>
           <p className="eyebrow choose-role">TAKE YOUR SIDE OF THE TABLE</p>
           <div className="role-picker" aria-label="Choose your role">
@@ -90,17 +83,6 @@ export function Welcome({
           <button className="primary" onClick={onStart}>
             Take your seat as {role} <span aria-hidden="true">→</span>
           </button>
-          {game && (
-            <button className="continue" onClick={onContinue}>
-              Continue {game.human} game · Round {game.round} →
-            </button>
-          )}
-          <button className="learn-link" onClick={onLearn}>
-            See how the game works <span aria-hidden="true">→</span>
-          </button>
-          <p className="fine">
-            One player · Two computer rivals · Automatically saved here
-          </p>
         </div>
         <div
           className="role-preview"
@@ -116,36 +98,6 @@ export function Welcome({
             <p>{guide[role].note}</p>
           </div>
         </div>
-      </section>
-      <section className="welcome-steps" aria-label="Getting started">
-        <article>
-          <span>01</span>
-          <div>
-            <h2>Choose your role</h2>
-            <p>
-              Build, command, or explore. Each role has its own way to score.
-            </p>
-          </div>
-        </article>
-        <article>
-          <span>02</span>
-          <div>
-            <h2>Roll. Make your move.</h2>
-            <p>
-              Tap the board. Your remaining actions and turn controls stay on
-              the table.
-            </p>
-          </div>
-        </article>
-        <article>
-          <span>03</span>
-          <div>
-            <h2>First to 15 wins</h2>
-            <p>
-              Builder → Army → Runner. Scores carry over as the rounds unfold.
-            </p>
-          </div>
-        </article>
       </section>
     </main>
   );
@@ -165,13 +117,9 @@ export function HowToPlay({
           <p className="eyebrow">PULL UP A CHAIR</p>
           <h1>The rules of the road.</h1>
           <p>
-            One player. Two computer rivals. Three different ways to reach{" "}
-            <strong>15 points.</strong>
+            Three different ways to reach <strong>15 points.</strong>
           </p>
         </div>
-        <button className="secondary" onClick={onReturn}>
-          Back to {returnLabel} →
-        </button>
       </div>
       <div className="turn-order" aria-label="Turn order">
         {roles.map((role, i) => (
@@ -206,91 +154,59 @@ export function HowToPlay({
                 <span>{guide[role].score}</span>
               </p>
               <p className="guide-note">{guide[role].note}</p>
+              <section className="guide-detail">
+                {role === "Builder" ? (
+                  <>
+                    <h3>Up to 5 walls per road</h3>
+                    <p>
+                      Walls stay until destroyed. Tap a road or an existing wall
+                      to build. If every road is full, unused walls are
+                      discarded.
+                    </p>
+                  </>
+                ) : role === "Army" ? (
+                  <>
+                    <h3>Up to 5 soldiers per location</h3>
+                    <p>
+                      Deploy on perimeter locations, away from the Runner.
+                      Soldiers that won’t fit when a group moves stay behind and
+                      can try another road.
+                    </p>
+                    <p>
+                      Castle arrivals score and leave the board. If every
+                      deployment spot is full, unused reinforcements are
+                      discarded.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h3>Movement costs</h3>
+                    <dl className="movement-costs">
+                      {[
+                        ["Open road", 1],
+                        ["One wall", 2],
+                        ["Open road + soldier", 2],
+                        ["One wall + soldier", 3],
+                      ].map(([label, cost]) => (
+                        <div key={label}>
+                          <dt>{label}</dt>
+                          <dd>
+                            {cost} <small>MP</small>
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                    <p>
+                      Crossing clears every wall; each extra wall adds 2. Remove
+                      one soldier on entry, with no Builder point. You must
+                      afford the whole crossing.
+                    </p>
+                  </>
+                )}
+              </section>
             </div>
           </article>
         ))}
-      </section>
-      <section className="movement-guide">
-        <div>
-          <p className="eyebrow">THE RUNNER’S MOVEMENT</p>
-          <h2>Every crossing has a cost.</h2>
-          <p>
-            Spend your rolled movement points to travel along the roads. You
-            must afford the whole crossing. <strong>End movement</strong> is
-            beneath your counter on the board. Capturing removes just one
-            soldier, even from a group, and gives the Builder no point.
-          </p>
-        </div>
-        <div className="movement-costs">
-          <article>
-            <b>1</b>
-            <h3>Open road</h3>
-            <p>Move to an empty location.</p>
-          </article>
-          <article>
-            <b>2</b>
-            <h3>One wall</h3>
-            <p>Break the wall and cross. Each extra wall adds 2.</p>
-          </article>
-          <article>
-            <b>2</b>
-            <h3>A soldier ahead</h3>
-            <p>Cross an open road and remove one soldier.</p>
-          </article>
-          <article>
-            <b>3</b>
-            <h3>Wall + soldier</h3>
-            <p>Clear one wall, cross, and remove one soldier.</p>
-          </article>
-        </div>
-      </section>
-      <section className="learn-details">
-        <article>
-          <h2>Coins mean points.</h2>
-          <p>
-            The Runner’s starting location is excluded for the whole turn. Each
-            other location has one silver coin, worth one point on your first
-            visit. Its coin disappears when the traveler arrives; unvisited
-            coins stay until the turn ends. A collected coin stays gone until
-            your next turn. Colored rings show which moves you can afford right
-            now.
-          </p>
-          <p>
-            <strong>I → II → I → II earns just 1 point.</strong> II scores once.
-            Returning to the start earns nothing. New turns reset the coins,
-            excluding your new starting location.
-          </p>
-        </article>
-        <article>
-          <h2>Five is the limit.</h2>
-          <p>
-            Up to five walls per road and five soldiers per perimeter location.
-            Army groups move together; soldiers without room stay behind and may
-            try another road. A soldier that crosses cannot move again that
-            turn.
-          </p>
-          <p>
-            Deploy only on perimeter locations, away from the Runner. If every
-            valid spot is full, leftover placements are discarded. The castle
-            scores arriving soldiers and removes them immediately.
-          </p>
-        </article>
-        <article>
-          <h2>Make yourself at home.</h2>
-          <p>
-            Tap roads to build. Tap a group and its destination to march. Tap
-            locations to deploy or explore.{" "}
-            <strong>Hold remaining soldiers</strong> and{" "}
-            <strong>End movement</strong> sit beneath your counter on the table.
-            The labeled controls beside the board also let you place and move
-            pieces.
-          </p>
-          <p>
-            Your game saves automatically. Use Continue to come back; completed
-            games go in the Chronicle. Adjust music, sound effects, and computer
-            speed in Settings.
-          </p>
-        </article>
       </section>
       <button className="primary learn-return" onClick={onReturn}>
         Return to {returnLabel} →

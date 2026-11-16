@@ -185,18 +185,6 @@ h2 {
 .primary span {
   font-size: 20px;
 }
-.continue {
-  display: block;
-  padding: 18px 0 4px;
-  color: #d7bd91;
-  font-size: 12px;
-}
-.fine {
-  font-size: 10px;
-  color: #95836d;
-  margin-top: 20px;
-  letter-spacing: 0.3px;
-}
 .hero-board {
   position: relative;
   min-width: 0;
@@ -405,17 +393,6 @@ aside {
 .locations {
   margin-top: 22px;
 }
-.speed {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  color: #ad987d;
-  margin-top: 20px;
-}
-.speed input {
-  accent-color: #d4ad67;
-}
 .audio-settings {
   border-top: 1px solid #4a382a;
   padding-top: 18px;
@@ -451,14 +428,6 @@ aside {
   outline: 2px solid #d4ad67;
   outline-offset: 4px;
   border-radius: 4px;
-}
-.test-sound {
-  width: auto;
-  padding: 11px 24px;
-}
-.paper .audio-note {
-  font-size: 12px;
-  color: #aa9478;
 }
 .journal {
   margin-top: 24px;

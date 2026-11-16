@@ -87,7 +87,7 @@ it("preserves muted preferences and safely handles old or corrupt storage", () =
   });
 });
 
-it("waits for actual dice contact and scales the cues with fast rolls", () => {
+it("waits for actual dice contact and scales cues with the roll duration", () => {
   for (const sides of [4, 6, 8] as const) {
     for (let value = 1; value <= sides; value++) {
       const contacts = diceContacts(sides, value);

@@ -13,9 +13,6 @@ test("new game, 3D scene, movement, reload, rules, and mobile", async ({
     fullPage: true,
   });
   await page.getByRole("button", { name: "Take your seat as Runner" }).click();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByLabel("Fast computer turns").check();
-  await page.getByRole("button", { name: /^Return to the table/ }).click();
   await expect(
     page.getByRole("button", { name: "Roll", exact: true }),
   ).toBeVisible({ timeout: 45000 });
@@ -42,7 +39,9 @@ test("new game, 3D scene, movement, reload, rules, and mobile", async ({
     fullPage: true,
   });
   await page.reload();
-  await page.getByRole("button", { name: /Continue Runner game/ }).click();
+  await page
+    .getByRole("button", { name: "Return to table", exact: true })
+    .click();
   await expect(
     page.getByRole("button", { name: "End movement" }),
   ).toBeVisible();
@@ -102,9 +101,6 @@ test("human Builder can build and human Army can deploy", async ({ page }) => {
   await page.getByRole("button", { name: /Army 2/ }).click();
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Take your seat as Army" }).click();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByLabel("Fast computer turns").check();
-  await page.getByRole("button", { name: /^Return to the table/ }).click();
   await expect(
     page.getByRole("button", { name: "Roll", exact: true }),
   ).toBeVisible({ timeout: 30000 });
@@ -168,7 +164,9 @@ test("a resumed game highlights its winner and records history once", async ({
     localStorage.setItem("kings-road.game.v1", '{"version":999}'),
   );
   await page.reload();
-  await expect(page.getByRole("button", { name: /^Continue/ })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Return to table", exact: true }),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Take your seat as Runner" }),
   ).toBeVisible();
@@ -271,7 +269,9 @@ test("Runner allowance counts walls and captures, persists, and remains visible 
   await expect(page.locator(".locations button").nth(2)).toBeDisabled();
   await expect(page.locator(".locations button").nth(0)).toBeEnabled();
   await page.reload();
-  await page.getByRole("button", { name: /^Continue Runner game/ }).click();
+  await page
+    .getByRole("button", { name: "Return to table", exact: true })
+    .click();
   await expect(counter.locator("b")).toHaveText("1");
   // Let the reloaded WebGL scene finish loading before capturing its overlay.
   await expect(page.locator("canvas")).toBeVisible();

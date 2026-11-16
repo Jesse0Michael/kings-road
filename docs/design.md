@@ -2,13 +2,13 @@
 
 ## Product
 
-A static, browser-only game: one human chooses any role and plays against two computer rivals. The rules remain asymmetric and unbalanced as designed. There is no backend or account system. The compact scoreboard sits above the playing surface and shows each role's score. The winning card is labeled and pulses gently; reduced-motion mode keeps a static highlight. The role-colored Roll button appears on the table for the human’s roll phase. Speed and audio preferences live in Settings. The journal uses the board's Roman numerals, including when displaying older saved entries.
+A static, browser-only game: one human chooses any role and plays against two computer rivals. The rules remain asymmetric and unbalanced as designed. There is no backend or account system. The compact scoreboard sits above the playing surface and shows each role's score. The winning card is labeled and pulses gently; reduced-motion mode keeps a static highlight. The role-colored Roll button appears on the table for the human’s roll phase. Audio preferences live in Settings. The journal uses the board's Roman numerals, including when displaying older saved entries.
 
 A role-colored counter in the upper-right corner of the tabletop shows walls left to build, soldiers left to deploy, or movement points left. During Army movement, it counts soldiers still ready to move. It updates without waiting for piece animations. The counter also shows computer turns and stays on the table at mobile sizes; it is hidden during the roll phase and after victory.
 
 The Runner's End movement and Army's Hold remaining soldiers controls live directly beneath their counters, so they remain in the board view on mobile. During Runner turns, silver coins with a crown and a five-road reverse rotate above locations that can still score. `runnerCanScore` drives these coins, the labeled +1 destinations, scoring, and AI preferences. The starting location has no coin; visited locations lose theirs when the traveler arrives. Unvisited coins remain until the turn ends and its queued movement finishes. Colored rings still indicate affordable connected moves. Reduced motion keeps the coins still.
 
-The landing page pairs role selection with a gameplay preview. How to play uses three small, silent MP4 examples of the real renderer and rules engine, followed by movement costs and capacity clarifications. Clips use static JPEG posters for reduced motion, have pause/play controls, and pause when offscreen or when the document is hidden. The development-only capture stage and generator are under `scripts/`; only compressed videos and posters ship. No extra WebGL contexts run on the learning pages.
+The landing page pairs role selection with a gameplay preview; header navigation provides How to play and Return to table. How to play uses three role cards with small, silent MP4 examples of the real renderer and rules engine. Each card includes its relevant movement costs or capacity limits. Clips use static JPEG posters for reduced motion, have pause/play controls, and pause when offscreen or when the document is hidden. The development-only capture stage and generator are under `scripts/`; only compressed videos and posters ship. No extra WebGL contexts run on the learning pages.
 
 ## Art direction and input
 
@@ -39,13 +39,13 @@ Version 1 stores the complete serializable game state: random seed, turn phase, 
 
 `visited` records physical visits, including the turn’s starting location, and excludes them from scoring. `scored` records locations that actually earned a point and starts empty. Both sets guard eligibility, including on resumed saves. Existing cumulative scores are retained; the starting location and all previously visited locations remain ineligible for subsequent actions under the current rule.
 
-Browser localStorage keeps one active game and the latest 100 completed results. Save failures explain that progress will last only while the tab stays open. Saved state is shape-validated on load; unsupported or corrupt saved games are ignored on startup. Players resume through Continue. Starting a new game replaces the active save; there is no manual file import/export.
+Browser localStorage keeps one active game and the latest 100 completed results. Save failures explain that progress will last only while the tab stays open. Saved state is shape-validated on load; unsupported or corrupt saved games are ignored on startup. Players resume through Return to table in the header. Starting a new game replaces the active save; there is no manual file import/export.
 
 ## Computer players
 
 The Builder prioritizes pressured castle approaches, with diminishing value for stacking walls on a single road. The Army prefers the castle and seeks lower-wall alternatives when heavily blocked. The Runner favors affordable destinations that can still score, with lower movement costs breaking ties. The excluded starting location offers no scoring preference but remains a legal route to other locations. These baseline strategies use public information and the same validated actions as the human.
 
-Computer actions are spaced by 210 ms normally or 100 ms in fast mode. They do not wait for placement or movement to settle. Dice finish before their budget becomes available; fast mode shortens computer rolls.
+Computer actions are spaced by 210 ms. They do not wait for placement or movement to settle. Dice finish before their budget becomes available. There is no speed setting.
 
 ## Piece motion
 
@@ -61,7 +61,7 @@ These controlled presentation animations do not affect rules or block controls. 
 
 Each die has permanent face numbering, including conventional opposite faces on d6/d8 and apex-readable numbers on d4. `scripts/generate-dice.mjs` uses Rapier during development to simulate convex dice under gravity, friction, and restitution, collecting a settled trajectory for every result. These recordings are checked into the repository. Unit tests verify the final orientation and d4 upper-tip labels.
 
-The rules engine determines a seeded roll. The browser interpolates the corresponding recorded positions and quaternions; there is no face relabeling or correction after landing. Seeded yaw variation keeps repeated results from looking identical. Dice roll directly on the wooden table in separated lanes to avoid interpenetration. Results remain on the table until the next roll. Human rolls and normal computer rolls take 1.9 seconds; fast computer rolls take 1.2 seconds. Reduced-motion users see the final pose immediately.
+The rules engine determines a seeded roll. The browser interpolates the corresponding recorded positions and quaternions; there is no face relabeling or correction after landing. Seeded yaw variation keeps repeated results from looking identical. Dice roll directly on the wooden table in separated lanes to avoid interpenetration. Results remain on the table until the next roll. Human and computer rolls take 1.9 seconds. Reduced-motion users see the final pose immediately.
 
 Rapier is a development dependency only. The production app needs no physics WebAssembly download or network service. Assets use Vite’s base URL so they load from the GitHub Pages project subdirectory.
 
@@ -71,7 +71,7 @@ The original Suno song is preserved outside `public/`; a normalized MP3 copy str
 
 Effects are original, offline-generated PCM samples. `SoundTimeline` consumes the same `reconcilePieces` paths as the renderer, so placements sound at contact and queued Runner captures sound at arrival. Army groups and wall stacks coalesce into a single cue per action. Castle arrivals have a distinct sound instead of a death sound; score changes play one short chime per scoring role/action. Reduced-motion mode skips the movement delay. No sound is replayed for restored state. Leaving the table or replacing a game cancels pending effects.
 
-Dice clacks are scheduled at actual table contacts detected from the recorded physical trajectories, scaled to the current roll duration. Simultaneous contacts coalesce to avoid multiplying the volume. The audio buffers are loaded after the first interaction. Missing/blocked audio does not affect gameplay. A small compressor controls overlapping effects; sounds do not block actions. A test-sound button in Settings helps adjust the effects slider.
+Dice clacks are scheduled at actual table contacts detected from the recorded physical trajectories, scaled to the current roll duration. Simultaneous contacts coalesce to avoid multiplying the volume. The audio buffers are loaded after the first interaction. Missing/blocked audio does not affect gameplay. A small compressor controls overlapping effects; sounds do not block actions. Releasing the effects slider, including a keyboard adjustment, previews the selected volume. Dragging is silent; zero stays muted. A new preview replaces any previous preview.
 
 ## Rendering limits
 
