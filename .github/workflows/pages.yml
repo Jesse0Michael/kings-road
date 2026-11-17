@@ -34,8 +34,6 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    secrets:
-      GH_ADMIN_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
 
   build:
     needs: infrastructure

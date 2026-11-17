@@ -93,7 +93,7 @@ public/site.webmanifest  # Application identity and home-screen launch settings
 assets/audio-source/     # Original song, excluded from the web build
 assets/brand/            # Approved icon master, excluded from the web build
 scripts/generate-dice.mjs # Development-only physics trajectory generator
-deploy/                  # Terraform bootstrap, fresh GA4 setup, GitHub Pages configuration
+deploy/                  # Terraform bootstrap and fresh GA4 configuration
 docs/                    # Original rules and current design decisions
 tests/browser/           # Playwright interaction tests
 ```
@@ -121,7 +121,7 @@ Audio assets are also committed. Optional regeneration: `npm run sfx:generate` n
 
 After the [one-time Terraform bootstrap](deploy/README.md), pushing to `main` runs [Test and deploy to GitHub Pages](.github/workflows/pages.yml): test, apply infrastructure, build with Terraform's generated analytics configuration, and publish `dist/` using GitHub’s official Pages actions. The workflow also supports a manual run from the Actions tab. Missing bootstrap configuration stops publication and leaves the currently deployed game in place.
 
-The published site is **https://jesse0michael.github.io/kings-road/**. Terraform manages Pages in GitHub Actions mode. Provisioning uses keyless Google authentication and a repository-scoped `GH_ADMIN_TOKEN` for GitHub settings; the Pages upload itself uses the workflow token. Publishing a Codex cloud environment is separate from pushing commits and deploying Pages.
+The published site is **https://jesse0michael.github.io/kings-road/**. Terraform manages Google Cloud and GA4 through keyless Google authentication. Pages stays in GitHub Actions mode and deploys with the built-in workflow token; no personal GitHub admin token is needed. Publishing a Codex cloud environment is separate from pushing commits and deploying Pages.
 
 ## Current limits
 

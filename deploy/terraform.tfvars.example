@@ -1,6 +1,4 @@
 analytics_account_id = "25334252"
-github_repository    = "Jesse0Michael/kings-road"
 site_url             = "https://jesse0michael.github.io/kings-road/"
 display_name         = "King’s Road"
 time_zone            = "America/Phoenix"
-adopt_existing_pages = true

@@ -2,7 +2,6 @@ mock_provider "googleanalytics" {}
 mock_provider "github" {}
 variables {
   analytics_account_id = "25334252"
-  adopt_existing_pages = false
 }
 run "fresh_property_and_complete_schema" {
   command = plan
@@ -21,9 +20,5 @@ run "fresh_property_and_complete_schema" {
   assert {
     condition     = googleanalytics_key_event.completion.event_name == "game_completed" && googleanalytics_key_event.completion.counting_method == "ONCE_PER_EVENT"
     error_message = "Each completed game should count, including multiple games in a session."
-  }
-  assert {
-    condition     = github_repository_pages.site.build_type == "workflow"
-    error_message = "Pages must continue deploying through GitHub Actions."
   }
 }

@@ -1,10 +1,10 @@
 # Provision and deploy King’s Road
 
-This configuration creates a **new GA4 property and web stream** under Analytics account **25334252**. It does not import or reuse the old Measurement ID. Terraform also manages the gameplay dimensions, metrics, key event, retention, Pages settings, deployment environment, and a public repository variable containing the generated Measurement ID.
+This configuration creates a **new GA4 property and web stream** under Analytics account **25334252**. It does not import or reuse the old Measurement ID. Terraform also manages the gameplay dimensions, metrics, key event and retention. Its outputs pass the generated Measurement ID directly to the build. GitHub Pages is deployed with the workflow’s built-in token; no personal GitHub token is required.
 
 The bootstrap creates a **new, dedicated Google Cloud project** for King’s Road, links it to your billing account, and creates its private versioned state bucket, service account, and GitHub Workload Identity Federation. No prayer-deck project, resources, state, or deployment identity is used. The Google Cloud project and GA4 property are different resources; both are created by this setup.
 
-Terraform applies incremental changes to the same resources on later runs. Keep the state: deleting it does not reset Google, and can create duplicates. The new Google Cloud project, GA4 property, stream, Pages site, environment and state bucket have deletion protection in configuration. Account signup/terms and the initial authority to act for those accounts remain prerequisites.
+Terraform applies incremental changes to the same resources on later runs. Keep the state: deleting it does not reset Google, and can create duplicates. The new Google Cloud project, GA4 property, stream and state bucket have deletion protection in configuration. Account signup/terms and the initial authority to act for those accounts remain prerequisites.
 
 ## One-time bootstrap
 
@@ -35,7 +35,7 @@ Prerequisites: Terraform **1.11.4**, `gcloud`, `gh`, and a Google login allowed 
 
    For a personal Google account, omit `organization_id` and `folder_id`. If your account requires projects in an organization or folder, set the appropriate one and ensure your login can create projects there. An optional `project_id` overrides the generated ID but must be globally unused; this configuration creates it rather than adopting an existing project. A billing account can pay for multiple independent projects without sharing their resources or permissions.
 
-3. In **Google Analytics → Admin → Account access management**, select account **25334252**, add the printed service-account email, and grant **Editor**. Account-level access is required to create the new property. Google Cloud IAM roles do not grant Analytics access.
+3. In Google Analytics, first use the top account/property picker to open a property in account **25334252**. Then go to **Admin → Account → Account access management → + → Add users**. Add the printed service-account email, grant **Editor**, and turn off email notification. This works with free GA4 and personal accounts; the service-account email is added as an ordinary user. Your own login needs account-level **Administrator** permission to add it. Account-level access lets the automation create the new property; Google Cloud IAM roles alone do not grant Analytics access.
 
 4. Print and run the repository-variable commands:
 
@@ -45,13 +45,7 @@ Prerequisites: Terraform **1.11.4**, `gcloud`, `gh`, and a Google login allowed 
 
    They set `GCP_PROJECT_ID`, `TF_STATE_BUCKET`, `WIF_PROVIDER`, `DEPLOYER_SERVICE_ACCOUNT`, and `GA_ACCOUNT_ID`. These are public identifiers, not private keys.
 
-5. Create a GitHub fine-grained token restricted to **Jesse0Michael/kings-road**, with repository **Pages: read/write**, **Environments: read/write**, **Variables: read/write**, and metadata read access. If your account's token UI/API requires Administration for Pages management, grant **Administration: read/write** as well. Store it as the repository secret `GH_ADMIN_TOKEN`:
-
-   ```sh
-   gh secret set GH_ADMIN_TOKEN --repo Jesse0Michael/kings-road
-   ```
-
-   The normal workflow `GITHUB_TOKEN` cannot administer these repository settings. An installation token from a GitHub App with the equivalent permissions can be substituted later. Do not put tokens, service-account keys, or Terraform state in the repository.
+5. In repository **Settings → Pages**, confirm **Source: GitHub Actions**. King’s Road already uses this setting. Keep the existing `github-pages` environment and its protections. No `GH_ADMIN_TOKEN` secret is needed.
 
 6. On `main`, run **Test and deploy to GitHub Pages** in Actions. The workflow tests the app, validates and applies Terraform, builds with the generated Measurement ID/hostname, and deploys to Pages. Its final job retires the old property after checking the published build.
 
@@ -64,10 +58,12 @@ Until bootstrap is complete, the infrastructure job stops with a missing-configu
 - All nine gameplay dimensions and sixteen metrics are registered, and `game_completed` becomes a key event counted once per event.
 - Retention is set to fourteen months.
 - Enhanced measurement is enabled through a small Admin API helper invoked by a `terraform_data` resource. The provider does not expose this API. It reruns when the stream, declared settings, or helper changes; it cannot detect console edits during a normal refresh. To reconcile manually, use `terraform apply -replace=terraform_data.enhanced_measurement`.
-- Existing **GitHub Pages and its environment** are adopted into state. These imports concern hosting only, not the old analytics property. Existing environment approval and branch protections are preserved.
-- Terraform outputs feed Vite directly in the same workflow. `GA_MEASUREMENT_ID` is also published as a repository variable for inspection, but builds use the current apply's output.
+- GitHub Pages and its environment stay outside Terraform. The existing deployment workflow uses its built-in `GITHUB_TOKEN` and `pages: write` permission.
+- Terraform outputs feed Vite directly in the same workflow. No GitHub variable is written for the Measurement ID.
 
-The existing repository, code and Actions workflow are already version-controlled. Terraform adopts the hosting configuration; it does not recreate the Git repository.
+The existing repository, code and Actions workflow are already version-controlled. Terraform manages Google infrastructure and analytics; Actions handles publication.
+
+If an earlier configuration already adopted the Pages site, environment, or `GA_MEASUREMENT_ID` repository variable, the `removed` blocks in `github.tf` forget those three state entries with `destroy = false`. Their live GitHub resources remain untouched. The GitHub provider is retained only to interpret this state migration, which requires no GitHub token. Any old Measurement ID repository variable is unused by the build.
 
 ## Retiring the old property
 
@@ -90,20 +86,21 @@ terraform fmt -check -recursive deploy
 terraform -chdir=deploy init -backend=false
 terraform -chdir=deploy validate
 terraform -chdir=deploy test
+python3 scripts/test-github-unmanage.py
 terraform -chdir=deploy/bootstrap init -backend=false
 terraform -chdir=deploy/bootstrap validate
 terraform -chdir=deploy/bootstrap test
 python3 -m unittest discover -s scripts -p 'test_analytics_admin.py'
 ```
 
-Tests use mock providers and make no cloud mutations. PRs only format-check, validate and run tests. Authenticated plan/apply runs on `main`; GitHub OIDC is restricted to this repository and `refs/heads/main`. The Pages workflow serializes applies and deployments. Remote state locking adds protection against simultaneous local runs. The provider versions/checksums are committed in both `.terraform.lock.hcl` files.
+Terraform tests use mock providers. The GitHub migration regression uses a temporary local state and a real provider plan with GitHub credentials removed; it verifies that all three changes are state-only forget operations. No tests apply changes to cloud resources. PRs only format-check, validate and run tests. Authenticated plan/apply runs on `main`; GitHub OIDC is restricted to this repository and `refs/heads/main`. The Pages workflow serializes applies and deployments. Remote state locking adds protection against simultaneous local runs. The provider versions/checksums are committed in both `.terraform.lock.hcl` files.
 
-For an authenticated local plan/apply, copy `deploy/terraform.tfvars.example`, initialize with `-backend-config="bucket=THE_BOOTSTRAP_BUCKET"`, supply a GitHub administration token through `GITHUB_TOKEN`, and use a Google identity with access to the state bucket plus Analytics account. `GOOGLE_OAUTH_ACCESS_TOKEN` must have `analytics.edit` scope; short-lived service-account impersonation can be used. CI obtains that token through Workload Identity Federation and does not store a Google private key.
+For an authenticated local plan/apply, copy `deploy/terraform.tfvars.example`, initialize with `-backend-config="bucket=THE_BOOTSTRAP_BUCKET"`, and use a Google identity with access to the state bucket plus Analytics account. `GOOGLE_OAUTH_ACCESS_TOKEN` must have `analytics.edit` scope; short-lived service-account impersonation can be used. CI obtains that token through Workload Identity Federation and does not store a Google private key.
 
 The GA4 provider is the pinned community provider `breymander/google-analytics` **0.1.0**. Its resource schemas and mock plans are validated here, but a real authenticated apply is still required to confirm access and API behavior in your account. Saved plans are used immediately and are not uploaded as public artifacts.
 
 ## Reusing this pattern
 
-For another repository, set a different bootstrap `app_slug`, `project_name`, `github_repository`, and state prefix in `deploy/versions.tf`. Set the main `analytics_account_id`, display name, timezone and site URL, and adjust workflow variables if overriding defaults. Set `adopt_existing_pages = false` for a repository without a Pages site/environment. Remove King’s Road's one-time retirement job and replace the event schema with that application's events.
+For another repository, set a different bootstrap `app_slug`, `project_name`, `github_repository`, and state prefix in `deploy/versions.tf`. Set the main `analytics_account_id`, display name, timezone and site URL, and adjust workflow variables if overriding defaults. Enable GitHub Pages in GitHub Actions mode once for the new repository. Remove King’s Road's one-time retirement job and replace the event schema with that application's events.
 
 Google accounts, billing-account signup/payment details, account terms, initial credentials, and GA4's custom report/Exploration layouts are not created by this configuration. The dedicated Google Cloud project itself is created by Terraform. Everything needed to provision and deploy this game's new analytics and hosting setup after that bootstrap is in the repository.

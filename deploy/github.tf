@@ -1,35 +1,21 @@
-locals {
-  repository_name = split("/", var.github_repository)[1]
-}
-resource "github_repository_pages" "site" {
-  repository = local.repository_name
-  build_type = "workflow"
+# Stop managing GitHub settings without deleting an existing Pages site,
+# environment, or variable if an earlier configuration was already applied.
+# These state-only removals do not require a GitHub token.
+removed {
+  from = github_repository_pages.site
   lifecycle {
-    prevent_destroy = true
+    destroy = false
   }
 }
-resource "github_repository_environment" "pages" {
-  repository  = local.repository_name
-  environment = "github-pages"
+removed {
+  from = github_repository_environment.pages
   lifecycle {
-    prevent_destroy = true
-    # Adopt the existing environment without removing its approval/branch rules.
-    ignore_changes = [reviewers, deployment_branch_policy, wait_timer, prevent_self_review, can_admins_bypass]
+    destroy = false
   }
 }
-resource "github_actions_variable" "measurement_id" {
-  repository    = local.repository_name
-  variable_name = "GA_MEASUREMENT_ID"
-  value         = googleanalytics_data_stream.web.measurement_id
-}
-# Pages already exists for this repository. New projects can disable adoption.
-import {
-  for_each = var.adopt_existing_pages ? toset([local.repository_name]) : toset([])
-  to       = github_repository_pages.site
-  id       = each.value
-}
-import {
-  for_each = var.adopt_existing_pages ? toset([local.repository_name]) : toset([])
-  to       = github_repository_environment.pages
-  id       = "${each.value}:github-pages"
+removed {
+  from = github_actions_variable.measurement_id
+  lifecycle {
+    destroy = false
+  }
 }

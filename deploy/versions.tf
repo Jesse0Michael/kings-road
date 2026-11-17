@@ -8,6 +8,7 @@ terraform {
       source  = "breymander/google-analytics"
       version = "= 0.1.0"
     }
+    # Needed only to interpret the state-only removals in github.tf.
     github = {
       source  = "integrations/github"
       version = "~> 6.13"
@@ -15,6 +16,3 @@ terraform {
   }
 }
 provider "googleanalytics" {}
-provider "github" {
-  owner = split("/", var.github_repository)[0]
-}

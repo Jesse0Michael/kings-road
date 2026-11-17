@@ -5,11 +5,9 @@ on:
     paths:
       - deploy/**
       - scripts/analytics-admin.py
+      - scripts/test-github-unmanage.py
       - .github/workflows/terraform.yml
   workflow_call:
-    secrets:
-      GH_ADMIN_TOKEN:
-        required: false
     outputs:
       measurement_id:
         value: ${{ jobs.apply.outputs.measurement_id }}
@@ -29,10 +27,12 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.11.4
+          terraform_wrapper: false
       - run: terraform fmt -check -recursive deploy
       - run: terraform -chdir=deploy init -backend=false -input=false -lockfile=readonly
       - run: terraform -chdir=deploy validate
       - run: terraform -chdir=deploy test
+      - run: python3 scripts/test-github-unmanage.py
       - run: terraform -chdir=deploy/bootstrap init -backend=false -input=false -lockfile=readonly
       - run: terraform -chdir=deploy/bootstrap validate
       - run: terraform -chdir=deploy/bootstrap test
@@ -52,8 +52,6 @@ jobs:
     env:
       TF_IN_AUTOMATION: "true"
       TF_VAR_analytics_account_id: ${{ vars.GA_ACCOUNT_ID }}
-      TF_VAR_github_repository: ${{ github.repository }}
-      GITHUB_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
       TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
       GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
       WIF_PROVIDER: ${{ vars.WIF_PROVIDER }}
@@ -63,7 +61,7 @@ jobs:
       - name: Check bootstrap configuration
         shell: bash
         run: |
-          for key in TF_VAR_analytics_account_id GITHUB_TOKEN TF_STATE_BUCKET GCP_PROJECT_ID WIF_PROVIDER DEPLOYER_SERVICE_ACCOUNT; do
+          for key in TF_VAR_analytics_account_id TF_STATE_BUCKET GCP_PROJECT_ID WIF_PROVIDER DEPLOYER_SERVICE_ACCOUNT; do
             if [ -z "${!key}" ]; then
               echo "::error::Missing $key. Complete deploy/README.md bootstrap before deploying."
               exit 1
@@ -80,6 +78,7 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.11.4
+          terraform_wrapper: false
       - run: terraform -chdir=deploy init -input=false -lockfile=readonly -backend-config="bucket=$TF_STATE_BUCKET"
       - name: Plan
         env:
