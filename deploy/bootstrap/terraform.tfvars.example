@@ -1,0 +1,5 @@
+project_id           = "your-existing-google-cloud-project-id"
+analytics_account_id = "25334252"
+github_repository    = "Jesse0Michael/kings-road"
+app_slug             = "kings-road"
+region               = "us-central1"

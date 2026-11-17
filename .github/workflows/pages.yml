@@ -8,12 +8,14 @@ on:
 permissions:
   contents: read
 
+# Infrastructure and publication share a lock so a later build cannot overtake
+# an earlier apply. Failed setup leaves the currently published site in place.
 concurrency:
   group: github-pages
   cancel-in-progress: false
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,6 +25,36 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - run: npm run build
+
+  infrastructure:
+    if: github.ref == 'refs/heads/main'
+    needs: test
+    uses: ./.github/workflows/terraform.yml
+    permissions:
+      contents: read
+      id-token: write
+    secrets:
+      GH_ADMIN_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+
+  build:
+    needs: infrastructure
+    runs-on: ubuntu-latest
+    env:
+      VITE_GA_MEASUREMENT_ID: ${{ needs.infrastructure.outputs.measurement_id }}
+      VITE_ANALYTICS_HOSTNAME: ${{ needs.infrastructure.outputs.site_hostname }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Require Terraform's public configuration
+        shell: bash
+        run: |
+          [[ "$VITE_GA_MEASUREMENT_ID" =~ ^G-[A-Z0-9]+$ ]]
+          test -n "$VITE_ANALYTICS_HOSTNAME"
+      - run: npm ci
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -41,3 +73,30 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  retire_old_analytics:
+    needs: [infrastructure, deploy]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v3
+        id: auth
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.DEPLOYER_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/analytics.edit
+      - name: Retire the old property after verifying the published replacement
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          GA_ACCOUNT_ID: ${{ vars.GA_ACCOUNT_ID }}
+          GA_REPLACEMENT_STREAM: ${{ needs.infrastructure.outputs.stream_name }}
+        run: >-
+          python3 scripts/analytics-admin.py retire
+          --account-id "$GA_ACCOUNT_ID"
+          --old-measurement-id G-YJ0DEXPQ93
+          --replacement-stream "$GA_REPLACEMENT_STREAM"

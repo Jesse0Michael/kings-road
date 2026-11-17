@@ -1,0 +1,97 @@
+name: Terraform
+
+on:
+  pull_request:
+    paths:
+      - deploy/**
+      - scripts/analytics-admin.py
+      - .github/workflows/terraform.yml
+  workflow_call:
+    secrets:
+      GH_ADMIN_TOKEN:
+        required: false
+    outputs:
+      measurement_id:
+        value: ${{ jobs.apply.outputs.measurement_id }}
+      site_hostname:
+        value: ${{ jobs.apply.outputs.site_hostname }}
+      stream_name:
+        value: ${{ jobs.apply.outputs.stream_name }}
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.11.4
+      - run: terraform fmt -check -recursive deploy
+      - run: terraform -chdir=deploy init -backend=false -input=false -lockfile=readonly
+      - run: terraform -chdir=deploy validate
+      - run: terraform -chdir=deploy test
+      - run: terraform -chdir=deploy/bootstrap init -backend=false -input=false -lockfile=readonly
+      - run: terraform -chdir=deploy/bootstrap validate
+      - run: python3 -m unittest discover -s scripts -p 'test_analytics_admin.py'
+
+  apply:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      measurement_id: ${{ steps.outputs.outputs.measurement_id }}
+      site_hostname: ${{ steps.outputs.outputs.site_hostname }}
+      stream_name: ${{ steps.outputs.outputs.stream_name }}
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_VAR_analytics_account_id: ${{ vars.GA_ACCOUNT_ID }}
+      TF_VAR_github_repository: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+      TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      WIF_PROVIDER: ${{ vars.WIF_PROVIDER }}
+      DEPLOYER_SERVICE_ACCOUNT: ${{ vars.DEPLOYER_SERVICE_ACCOUNT }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check bootstrap configuration
+        shell: bash
+        run: |
+          for key in TF_VAR_analytics_account_id GITHUB_TOKEN TF_STATE_BUCKET GCP_PROJECT_ID WIF_PROVIDER DEPLOYER_SERVICE_ACCOUNT; do
+            if [ -z "${!key}" ]; then
+              echo "::error::Missing $key. Complete deploy/README.md bootstrap before deploying."
+              exit 1
+            fi
+          done
+      - uses: google-github-actions/auth@v3
+        id: auth
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.DEPLOYER_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/analytics.edit
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.11.4
+      - run: terraform -chdir=deploy init -input=false -lockfile=readonly -backend-config="bucket=$TF_STATE_BUCKET"
+      - name: Plan
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: terraform -chdir=deploy plan -input=false -lock-timeout=5m -out=production.tfplan
+      - name: Apply saved plan
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: terraform -chdir=deploy apply -input=false -lock-timeout=5m production.tfplan
+      - name: Export public build configuration
+        id: outputs
+        shell: bash
+        run: |
+          echo "measurement_id=$(terraform -chdir=deploy output -raw measurement_id)" >> "$GITHUB_OUTPUT"
+          echo "site_hostname=$(terraform -chdir=deploy output -raw site_hostname)" >> "$GITHUB_OUTPUT"
+          echo "stream_name=$(terraform -chdir=deploy output -raw stream_name)" >> "$GITHUB_OUTPUT"

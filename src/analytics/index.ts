@@ -1,6 +1,18 @@
 import { GameAnalytics, type Send } from "./gameAnalytics";
 
-export const MEASUREMENT_ID = "G-YJ0DEXPQ93";
+import { analyticsConfig } from "./config";
+
+const {
+  measurementId: MEASUREMENT_ID,
+  debug,
+  enabled,
+} = analyticsConfig(
+  import.meta.env.VITE_GA_MEASUREMENT_ID,
+  import.meta.env.VITE_ANALYTICS_HOSTNAME,
+  import.meta.env.PROD,
+  window.location.hostname,
+  import.meta.env.VITE_ANALYTICS_DEBUG === "true",
+);
 declare global {
   interface Window {
     dataLayer?: unknown[];
@@ -9,12 +21,6 @@ declare global {
 
 // Debug mode queues events locally without loading Google. Ordinary development
 // is silent; production uses the standard Google tag, with no GTM container.
-const debug =
-  import.meta.env.DEV && import.meta.env.VITE_ANALYTICS_DEBUG === "true";
-const enabled =
-  (import.meta.env.PROD &&
-    window.location.hostname === "jesse0michael.github.io") ||
-  debug;
 function gtag(..._args: unknown[]) {
   window.dataLayer ??= [];
   window.dataLayer.push(arguments);

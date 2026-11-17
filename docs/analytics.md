@@ -1,14 +1,12 @@
 # Gameplay analytics (GA4)
 
-The published site sends events directly to **G-YJ0DEXPQ93** using the Google tag. The supplied GTM container (`GTM-KLMPR7FR`) is **not installed**: adding it with another GA4 configuration would risk counting visits twice. There is no backend, API secret, or npm analytics dependency.
+The published site receives its GA4 Measurement ID and allowed hostname from Terraform outputs at build time. There is no hardcoded production Measurement ID and no Tag Manager container. Missing configuration disables analytics for local builds; CI requires Terraform to supply a valid ID before publishing.
 
-## Finish setup in Google Analytics
+## Provision the configuration
 
-1. In **Admin → Data streams → Web**, confirm the stream's Measurement ID is `G-YJ0DEXPQ93`. Enhanced measurement can stay enabled. The tag sends the initial `page_view`; internal app screens use the separate `screen_opened` event rather than extra page views.
-2. In **Admin → Custom definitions**, create the event-scoped dimensions below. Display names are your choice; event parameter names must match exactly.
-3. Create the custom metrics below with scope **Event**. Choose **Seconds** for `active_seconds`, and **Standard** for counts and scores.
-4. Mark `game_completed` as a **key event**. Choose **once per event**, since a visitor can complete several games in one session.
-5. Open the published game and inspect **Reports → Realtime**. Standard reports and custom definitions can take 24–48 hours to populate. Definitions are not retroactive, so register them early.
+Follow [deploy/README.md](../deploy/README.md) to bootstrap and provision the fresh GA4 property. Terraform registers the custom dimensions and metrics below, marks `game_completed` as a key event, sets retention, and enables enhanced measurement. You do not need to create those definitions manually.
+
+After the first deployment, open the new property in **Reports → Realtime** while playing. Standard reports and new custom definitions can take 24–48 hours to populate. Initial page views come from the Google tag; app screens use `screen_opened` rather than extra page views. Custom report/Exploration layouts still need to be created in GA4's UI.
 
 Recommended event-scoped dimensions:
 
@@ -24,7 +22,7 @@ Recommended event-scoped dimensions:
 | `timing_partial` | 1 if timing began after the game's original start; otherwise 0 |
 | `human_won`      | 1 for human victory, 0 for computer victory                    |
 
-Recommended custom metrics: `total_rounds`, `active_seconds`, `builder_score`, `army_score`, `runner_score`, `roll_total`, `walls_built`, `soldiers_deployed`, `walls_destroyed`, `soldiers_sacrificed`, `castle_arrivals`, `coins_collected`, `soldiers_defeated`, `moves`, `soldiers_held`. Event `round` is the current round; `total_rounds` is provided on completed games. Register `round` as a metric too if you want turn-by-turn round analysis.
+Recommended custom metrics: `total_rounds`, `active_seconds`, `builder_score`, `army_score`, `runner_score`, `roll_total`, `walls_built`, `soldiers_deployed`, `walls_destroyed`, `soldiers_sacrificed`, `castle_arrivals`, `coins_collected`, `soldiers_defeated`, `moves`, `soldiers_held`. Event `round` is the current round; `total_rounds` is provided on completed games. Terraform also registers `round` for turn-by-turn analysis.
 
 Do **not** register `game_id` as a custom dimension: unique IDs produce high-cardinality reports. It is sent for per-game analysis through an optional BigQuery export. No account identity, name, or email is sent by the game.
 
@@ -57,10 +55,10 @@ Do not equate closing the tab with abandonment: the game may be resumed later. `
 
 Active time counts while the unfinished game screen is visible, including thinking and dice animation time. It excludes hidden tabs, menus, and time between visits; it is not an idle-detection metric. A separate localStorage record (`kings-road.analytics.v1`) checkpoints duration on actions, screen changes, visibility changes, and page exit. Missing/old metadata marks durations as partial. Legacy string journals cannot reconstruct every action from before this integration. Rules and AI version constants identify the implementation recording the events; bump them when those behaviors change.
 
-Normal local development and local production previews send nothing to Google. The tag loads only in a production build on `jesse0michael.github.io`. To inspect locally without sending traffic:
+Normal local development and local production previews send nothing to Google. The tag loads only in a production build on the hostname supplied by Terraform. To inspect locally without sending traffic:
 
 ```sh
-VITE_ANALYTICS_DEBUG=true npm run dev
+VITE_ANALYTICS_DEBUG=true VITE_GA_MEASUREMENT_ID=G-TEST000001 npm run dev
 ```
 
 Inspect `window.dataLayer` in the console. It contains standard `gtag` command arguments, but debug mode does not load Google's script. Playwright starts Vite in this mode; stop an existing non-debug dev server before running the analytics browser test.

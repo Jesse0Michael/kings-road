@@ -27,7 +27,7 @@ test("queues gameplay for GA4 without Google requests in development; reloads do
   await expect.poll(() => events(page, "game_started")).toHaveLength(1);
   expect((await events(page, "role_selected"))[0]).toMatchObject({
     human_role: "Builder",
-    send_to: "G-YJ0DEXPQ93",
+    send_to: "G-TEST000001",
   });
   expect(await events(page, "game_resumed")).toHaveLength(0);
   await page.getByRole("button", { name: /KING’S ROAD/ }).click();

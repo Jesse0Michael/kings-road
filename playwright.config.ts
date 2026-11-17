@@ -20,7 +20,10 @@ export default defineConfig({
   },
   webServer: {
     command: "npm run dev",
-    env: { VITE_ANALYTICS_DEBUG: "true" },
+    env: {
+      VITE_ANALYTICS_DEBUG: "true",
+      VITE_GA_MEASUREMENT_ID: "G-TEST000001",
+    },
     url: "http://127.0.0.1:5173",
     reuseExistingServer: true,
   },

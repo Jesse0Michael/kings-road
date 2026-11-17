@@ -63,9 +63,9 @@ Read the [original rules and current clarifications](docs/rules.md) and [impleme
 
 ## Analytics
 
-The published site uses Google Analytics 4 (`G-YJ0DEXPQ93`) for visits and gameplay events: role choices, starts/resumes, completed turns, replacements, and final results. Game results include the winner, scores, rounds, and visible playing time. Analytics never blocks gameplay, and local development sends no traffic to Google.
+Terraform provisions Google Analytics 4 and passes the generated Measurement ID into the published build. It tracks visits and gameplay events: role choices, starts/resumes, completed turns, replacements, and final results. Game results include the winner, scores, rounds, and visible playing time. Analytics never blocks gameplay, and local development sends no traffic to Google.
 
-See the [GA4 setup and reporting guide](docs/analytics.md) for custom dimensions, metrics, useful reports, data limitations, and local debugging. The Google tag is installed directly; the GTM container is not needed.
+See the [Terraform setup guide](deploy/README.md) for provisioning and the [GA4 reporting guide](docs/analytics.md) for useful reports, data limitations, and local debugging. The Google tag is installed directly; the GTM container is not needed.
 
 ## Graphics and technology
 
@@ -93,6 +93,7 @@ public/site.webmanifest  # Application identity and home-screen launch settings
 assets/audio-source/     # Original song, excluded from the web build
 assets/brand/            # Approved icon master, excluded from the web build
 scripts/generate-dice.mjs # Development-only physics trajectory generator
+deploy/                  # Terraform bootstrap, fresh GA4 setup, GitHub Pages configuration
 docs/                    # Original rules and current design decisions
 tests/browser/           # Playwright interaction tests
 ```
@@ -118,9 +119,9 @@ Audio assets are also committed. Optional regeneration: `npm run sfx:generate` n
 
 ## GitHub Pages deployment
 
-Pushing to `main` runs [Test and deploy to GitHub Pages](.github/workflows/pages.yml): install dependencies, run unit tests, build, and publish `dist/` with GitHub’s official Pages actions. The workflow also supports a manual run from the Actions tab.
+After the [one-time Terraform bootstrap](deploy/README.md), pushing to `main` runs [Test and deploy to GitHub Pages](.github/workflows/pages.yml): test, apply infrastructure, build with Terraform's generated analytics configuration, and publish `dist/` using GitHub’s official Pages actions. The workflow also supports a manual run from the Actions tab. Missing bootstrap configuration stops publication and leaves the currently deployed game in place.
 
-The published site is **https://jesse0michael.github.io/kings-road/**. The deployment job links its result. Repository **Settings → Pages → Source** should remain set to **GitHub Actions**. No personal token or hosting secret is needed. Publishing a Codex cloud environment is separate from pushing commits and deploying Pages.
+The published site is **https://jesse0michael.github.io/kings-road/**. Terraform manages Pages in GitHub Actions mode. Provisioning uses keyless Google authentication and a repository-scoped `GH_ADMIN_TOKEN` for GitHub settings; the Pages upload itself uses the workflow token. Publishing a Codex cloud environment is separate from pushing commits and deploying Pages.
 
 ## Current limits
 

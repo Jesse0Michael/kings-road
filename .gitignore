@@ -3,3 +3,15 @@ dist/
 *.tsbuildinfo
 test-results/
 playwright-report/
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+!*.tfvars.example
+.env.local
+.env.*.local
+gha-creds-*.json
+__pycache__/
+*.tfvars.json
+.env
