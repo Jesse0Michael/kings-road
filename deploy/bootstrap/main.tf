@@ -5,10 +5,33 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 8.11"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.7"
+    }
   }
 }
-provider "google" {
-  project = var.project_id
+provider "google" {}
+
+# The suffix stays in Terraform state, so later applies keep the same project.
+resource "random_id" "project_suffix" {
+  byte_length = 3
+}
+resource "google_project" "game" {
+  project_id          = coalesce(var.project_id, "${var.app_slug}-${random_id.project_suffix.hex}")
+  name                = var.project_name
+  billing_account     = var.billing_account_id
+  org_id              = var.organization_id
+  folder_id           = var.folder_id
+  auto_create_network = false
+  deletion_policy     = "PREVENT"
+  lifecycle {
+    prevent_destroy = true
+    precondition {
+      condition     = var.organization_id == null || var.folder_id == null
+      error_message = "Set either organization_id or folder_id, not both."
+    }
+  }
 }
 locals {
   apis = toset([
@@ -19,12 +42,13 @@ locals {
 }
 resource "google_project_service" "api" {
   for_each           = local.apis
-  project            = var.project_id
+  project            = google_project.game.project_id
   service            = each.value
   disable_on_destroy = false
 }
 resource "google_storage_bucket" "state" {
-  name                        = "${var.project_id}-${var.app_slug}-tfstate"
+  project                     = google_project.game.project_id
+  name                        = "${google_project.game.project_id}-tfstate"
   location                    = var.region
   uniform_bucket_level_access = true
   public_access_prevention    = "enforced"
@@ -37,12 +61,13 @@ resource "google_storage_bucket" "state" {
   depends_on = [google_project_service.api]
 }
 resource "google_service_account" "deployer" {
+  project      = google_project.game.project_id
   account_id   = "${var.app_slug}-deployer"
   display_name = "${var.app_slug} infrastructure automation"
   depends_on   = [google_project_service.api]
 }
 resource "google_project_iam_member" "quota" {
-  project = var.project_id
+  project = google_project.game.project_id
   role    = "roles/serviceusage.serviceUsageConsumer"
   member  = google_service_account.deployer.member
 }
@@ -52,11 +77,13 @@ resource "google_storage_bucket_iam_member" "state" {
   member = google_service_account.deployer.member
 }
 resource "google_iam_workload_identity_pool" "github" {
+  project                   = google_project.game.project_id
   workload_identity_pool_id = "${var.app_slug}-github"
   display_name              = var.app_slug
   depends_on                = [google_project_service.api]
 }
 resource "google_iam_workload_identity_pool_provider" "github" {
+  project                            = google_project.game.project_id
   workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
   workload_identity_pool_provider_id = "github"
   attribute_mapping = {

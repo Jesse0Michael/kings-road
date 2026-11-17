@@ -1,5 +1,13 @@
-project_id           = "your-existing-google-cloud-project-id"
+billing_account_id   = "XXXXXX-XXXXXX-XXXXXX"
 analytics_account_id = "25334252"
 github_repository    = "Jesse0Michael/kings-road"
 app_slug             = "kings-road"
 region               = "us-central1"
+
+# Optional: otherwise a new globally unique kings-road-<suffix> ID is generated.
+# project_id = "my-unused-kings-road-project-id"
+# project_name = "Kings Road"
+
+# Optional for managed Google Cloud organizations; set at most one.
+# organization_id = "123456789012"
+# folder_id = "123456789012"

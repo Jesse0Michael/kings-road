@@ -1,3 +1,6 @@
+output "project_id" {
+  value = google_project.game.project_id
+}
 output "state_bucket" {
   value = google_storage_bucket.state.name
 }
@@ -10,7 +13,7 @@ output "workload_identity_provider" {
 }
 output "github_variables" {
   value = <<-EOT
-    gh variable set GCP_PROJECT_ID --repo '${var.github_repository}' --body '${var.project_id}'
+    gh variable set GCP_PROJECT_ID --repo '${var.github_repository}' --body '${google_project.game.project_id}'
     gh variable set TF_STATE_BUCKET --repo '${var.github_repository}' --body '${google_storage_bucket.state.name}'
     gh variable set WIF_PROVIDER --repo '${var.github_repository}' --body '${google_iam_workload_identity_pool_provider.github.name}'
     gh variable set DEPLOYER_SERVICE_ACCOUNT --repo '${var.github_repository}' --body '${google_service_account.deployer.email}'

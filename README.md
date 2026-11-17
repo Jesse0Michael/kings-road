@@ -63,7 +63,7 @@ Read the [original rules and current clarifications](docs/rules.md) and [impleme
 
 ## Analytics
 
-Terraform provisions Google Analytics 4 and passes the generated Measurement ID into the published build. It tracks visits and gameplay events: role choices, starts/resumes, completed turns, replacements, and final results. Game results include the winner, scores, rounds, and visible playing time. Analytics never blocks gameplay, and local development sends no traffic to Google.
+Terraform creates a dedicated Google Cloud project for King’s Road, provisions Google Analytics 4, and passes the generated Measurement ID into the published build. It tracks visits and gameplay events: role choices, starts/resumes, completed turns, replacements, and final results. Game results include the winner, scores, rounds, and visible playing time. Analytics never blocks gameplay, and local development sends no traffic to Google.
 
 See the [Terraform setup guide](deploy/README.md) for provisioning and the [GA4 reporting guide](docs/analytics.md) for useful reports, data limitations, and local debugging. The Google tag is installed directly; the GTM container is not needed.
 

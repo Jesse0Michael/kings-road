@@ -1,10 +1,33 @@
 variable "project_id" {
-  description = "Existing Google Cloud project (can be shared with prayer-deck)."
+  description = "Optional globally unique ID for the NEW project. Omit to generate app_slug plus a stable random suffix."
+  type        = string
+  default     = null
+  validation {
+    condition     = var.project_id == null || can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.project_id))
+    error_message = "Use a valid, unused Google Cloud project ID, or omit it."
+  }
+}
+variable "project_name" {
+  type    = string
+  default = "Kings Road"
+}
+variable "billing_account_id" {
+  description = "Billing account authorized to pay for the new project's state storage."
   type        = string
   validation {
-    condition     = can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.project_id))
-    error_message = "Use the Google Cloud project ID, not a display name or Analytics account ID."
+    condition     = can(regex("^[A-Fa-f0-9]{6}-[A-Fa-f0-9]{6}-[A-Fa-f0-9]{6}$", var.billing_account_id))
+    error_message = "Use the billing account ID in XXXXXX-XXXXXX-XXXXXX format."
   }
+}
+variable "organization_id" {
+  description = "Optional numeric organization ID; omit for a personal No organization project."
+  type        = string
+  default     = null
+}
+variable "folder_id" {
+  description = "Optional numeric folder ID instead of organization_id."
+  type        = string
+  default     = null
 }
 variable "app_slug" {
   type    = string
