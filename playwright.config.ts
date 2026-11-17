@@ -20,6 +20,7 @@ export default defineConfig({
   },
   webServer: {
     command: "npm run dev",
+    env: { VITE_ANALYTICS_DEBUG: "true" },
     url: "http://127.0.0.1:5173",
     reuseExistingServer: true,
   },

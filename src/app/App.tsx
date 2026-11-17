@@ -17,11 +17,15 @@ import { Table, colors } from "../scene/Table";
 import { history, loadGame, save } from "../persistence";
 import { useGameAudio } from "../audio/useGameAudio";
 import { Welcome, HowToPlay } from "../ui/Welcome";
+import { analytics } from "../analytics";
 export default function App() {
   const [game, setGame] = useState<Game | null>(loadGame);
   const [screen, setScreen] = useState<
     "home" | "game" | "rules" | "history" | "settings"
   >("home");
+  useEffect(() => {
+    analytics.screen(screen, game);
+  }, [screen, game?.id]);
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [screen]);
@@ -90,9 +94,10 @@ export default function App() {
       }
     }
   }, [g]);
-  function commit(next: Game) {
+  function commit(next: Game, action: Parameters<typeof act>[1]) {
     const before = currentGame.current;
     if (before && next !== before) {
+      analytics.action(before, next, action);
       const transition = {
         id: ++sequence.current,
         before,
@@ -127,12 +132,12 @@ export default function App() {
         busy.current = true;
         setRolling(true);
         actionTimer.current = setTimeout(() => {
-          if (currentGame.current === active) commit(next);
+          if (currentGame.current === active) commit(next, a);
           busy.current = false;
           setRolling(false);
         }, duration + 80);
-      } else commit(next);
-    } else commit(next);
+      } else commit(next, a);
+    } else commit(next, a);
   }
   useEffect(() => {
     if (!g || screen !== "game" || human || g.winner || rolling) return;
@@ -159,6 +164,7 @@ export default function App() {
   function newGame() {
     resetMotion();
     const fresh = createGame(role);
+    analytics.start(fresh, currentGame.current);
     currentGame.current = fresh;
     setGame(fresh);
     setSelected(null);
@@ -217,7 +223,10 @@ export default function App() {
       {screen === "home" && (
         <Welcome
           role={role}
-          onChoose={setRole}
+          onChoose={(nextRole) => {
+            setRole(nextRole);
+            analytics.role(nextRole);
+          }}
           onStart={() => {
             if (
               g &&

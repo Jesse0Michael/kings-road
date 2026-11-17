@@ -61,11 +61,17 @@ Saves belong to this browser and web address. Starting a new game replaces the a
 
 Read the [original rules and current clarifications](docs/rules.md) and [implementation decisions](docs/design.md).
 
+## Analytics
+
+The published site uses Google Analytics 4 (`G-YJ0DEXPQ93`) for visits and gameplay events: role choices, starts/resumes, completed turns, replacements, and final results. Game results include the winner, scores, rounds, and visible playing time. Analytics never blocks gameplay, and local development sends no traffic to Google.
+
+See the [GA4 setup and reporting guide](docs/analytics.md) for custom dimensions, metrics, useful reports, data limitations, and local debugging. The Google tag is installed directly; the GTM container is not needed.
+
 ## Graphics and technology
 
 React, TypeScript, Vite, and Three.js through React Three Fiber. A separate rules engine validates the same actions for humans and computers.
 
-The scene uses low-poly soldiers with close-held swords and shields, a hooded traveler, and stone walls crossing the roads. Roman numerals, roads, and the central castle are engraved into one continuous wooden board. Generated WebP wood textures, fonts, and models are bundled locally; the game makes no runtime CDN or image-generation requests.
+The scene uses low-poly soldiers with close-held swords and shields, a hooded traveler, and stone walls crossing the roads. Roman numerals, roads, and the central castle are engraved into one continuous wooden board. Generated WebP wood textures, fonts, and models are bundled locally.
 
 Dice have permanent face numbering. Their tumbles are recorded from real Rapier simulations during development, with a verified landing for every d4, d6, and d8 result. The browser replays the appropriate trajectory for the engine’s seeded roll. No number changes or forced orientation correction happen at the end, and no physics engine needs to download at runtime. Read a d4 at its upper tip; read d6 and d8 on their upward face.
 
@@ -75,6 +81,7 @@ src/
   game/                  # Rules engine, seeded dice, computer strategies
   persistence/           # Validated local saves and game history
   audio/                 # Saved volumes, playback, animation-aligned sound cues
+  analytics/             # GA4 events, turn summaries, resumable playing-time clock
   scene/                 # Board, models, hit testing, piece motion, dice
   ui/style.css           # Responsive interface styling
   main.tsx               # Entry point and locally bundled fonts
